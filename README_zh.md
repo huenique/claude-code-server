@@ -5,6 +5,10 @@
 [![Node.js](https://img.shields.io/node/v/claude-code-server.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/npm/l/claude-code-server.svg)](LICENSE)
 
+简体中文 | [**English**](README.md)
+
+---
+
 Claude Code Server 是一个功能完整的 HTTP API 服务，将 Anthropic Claude CLI 封装为易用的 RESTful API。支持多轮对话、异步任务队列、统计分析、Webhook 回调等企业级功能，并配有直观的 TUI 管理工具。
 
 ## ✨ 特性
@@ -37,7 +41,7 @@ Claude Code Server 是一个功能完整的 HTTP API 服务，将 Anthropic Clau
 
 ```bash
 # 克隆或下载项目
-cd claude-api-server
+cd claude-code-server
 
 # 安装依赖
 npm install

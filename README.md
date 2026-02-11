@@ -5,6 +5,10 @@
 [![Node.js](https://img.shields.io/node/v/claude-code-server.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/npm/l/claude-code-server.svg)](LICENSE)
 
+[**简体中文**](README_zh.md) | English
+
+---
+
 Claude Code Server is a full-featured HTTP API service that wraps the Anthropic Claude CLI as an easy-to-use RESTful API. It supports enterprise-level features such as multi-turn conversations, async task queues, statistics and analytics, Webhook callbacks, and comes with an intuitive TUI management tool.
 
 ## ✨ Features
@@ -37,7 +41,7 @@ Claude Code Server is a full-featured HTTP API service that wraps the Anthropic 
 
 ```bash
 # Clone or download the project
-cd claude-api-server
+cd claude-code-server
 
 # Install dependencies
 npm install
