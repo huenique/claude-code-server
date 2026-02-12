@@ -8,6 +8,7 @@ const configDir = path.join(process.env.HOME || os.homedir(), '.claude-code-serv
 const configPath = path.join(configDir, 'config.json');
 
 // 默认配置（用于未找到路径时的回退）
+// 注意：这些路径会在 loadConfig() 中动态修正
 const defaultConfig = {
   port: 5546,
   host: '0.0.0.0',
