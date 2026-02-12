@@ -20,8 +20,6 @@ const defaultConfig = {
   pidFile: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'server.pid'),
   dataDir: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'data'),
   sessionRetentionDays: 30,
-  allowRoot: false,  // 默认不允许以 root 运行
-  securityCheck: true,  // 默认启用安全检查
 };
 
 // 加载配置（支持异步路径检测）
@@ -60,31 +58,36 @@ async function loadConfig() {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   }
 
-  // 检查是否需要启用安全检查
-  const needsSecurityCheck = config.securityCheck !== false && config.allowRoot !== true;
+  // 检测是否为 root 用户
   const isRunningAsRoot = process.getuid() === 0; // UID 0 = root
 
-  // 如果启用安全检查且以 root 运行
-  if (needsSecurityCheck && isRunningAsRoot) {
-    // 自动设置 allowRoot = true
-    config.allowRoot = true;
-
+  if (isRunningAsRoot && config.enableRootCompatibility === false) {
+    // 如果是 root 用户且未启用 root 兼容模式，显示错误并退出
     console.error('');
     console.error(chalk.red.bold('═════════════════════════════════════════'));
-    console.error(chalk.red.bold('⚠️  安全警告：Claude CLI 不允许以 root 用户运行'));
+    console.error(chalk.red.bold('⚠️  检测到以 root 用户运行，但 root 兼容模式未启用'));
     console.error('');
-    console.error(chalk.yellow('出于安全考虑，Claude CLI 拒绝在提权环境下执行。'));
+    console.error(chalk.yellow('Claude CLI 不允许在 root 权限下使用 --allow-dangerously-skip-permissions'));
     console.error('');
-    console.error(chalk.yellow('解决方案：'));
-    console.error(chalk.white('  1. 以普通用户身份运行服务'));
-    console.error(chalk.white('  2. 在配置中添加 "allowRoot": true'));
+    console.error(chalk.cyan('解决方案：'));
+    console.error(chalk.white('  1. 在配置菜单中启用"root 兼容模式"'));
+    console.error(chalk.white('  2. 或者使用普通用户运行服务'));
     console.error('');
-    console.error(chalk.gray('如需继续以 root 运行，请设置环境变量：'));
-    console.error(chalk.gray('  export ALLOW_ROOT=true'));
-    console.error('');
-    console.error(chalk.red.bold('═══════════════════════════════════════'));
+    console.error(chalk.gray('提示：使用 "node cli.js" 进入配置菜单'));
+    console.error(chalk.red.bold('═════════════════════════════════════════'));
     console.error('');
     process.exit(1);
+  } else if (isRunningAsRoot && config.enableRootCompatibility !== false) {
+    // root 用户且已启用 root 兼容模式，显示提示信息但继续运行
+    console.error('');
+    console.error(chalk.yellow.bold('═════════════════════════════════════════'));
+    console.error(chalk.yellow.bold('ℹ️  Root 兼容模式已启用'));
+    console.error('');
+    console.error(chalk.cyan('正在使用 IS_SANDBOX=1 环境变量绕过 Claude CLI 的 root 限制'));
+    console.error('');
+    console.error(chalk.yellow('⚠️  请确保您了解在 root 下运行 AI 助手的风险！'));
+    console.error(chalk.yellow.bold('═════════════════════════════════════════'));
+    console.error('');
   }
 
   // 自动检测和修复路径

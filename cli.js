@@ -47,8 +47,7 @@ const defaultConfig = {
     configPath: null
   },
   logLevel: 'info',
-  allowRoot: false,
-  securityCheck: true
+  enableRootCompatibility: true
 };
 
 // 确保配置目录存在并加载配置
@@ -130,7 +129,6 @@ async function startServer() {
         ...process.env,
         NODE_ENV: 'production', // 设置为生产环境，禁用控制台日志
         CLAUDE_BACKGROUND: 'true', // 额外的后台模式标记
-        ALLOW_ROOT: config.allowRoot ? 'true' : 'false', // 传递 allowRoot 配置
       },
     });
 
@@ -447,25 +445,18 @@ async function configureSettings() {
   // 更新基本配置
   Object.assign(config, basicAnswers);
 
-  // 第二部分：安全配置
-  const securityAnswers = await inquirer.prompt([
+  // 第二部分：root 兼容配置
+  const { enableRootCompatibility } = await inquirer.prompt([
     {
       type: 'confirm',
-      name: 'allowRoot',
-      message: '允许以 root 用户运行? (不推荐)',
-      default: config.allowRoot || false,
-    },
-    {
-      type: 'confirm',
-      name: 'securityCheck',
-      message: '启用安全检查?',
-      default: config.securityCheck !== false,
+      name: 'enableRootCompatibility',
+      message: '启用 root 兼容模式? (绕过 Claude CLI 的 root 限制)',
+      default: config.enableRootCompatibility !== false,
     },
   ]);
 
-  // 更新安全配置
-  config.allowRoot = securityAnswers.allowRoot;
-  config.securityCheck = securityAnswers.securityCheck;
+  // 更新 root 兼容配置
+  config.enableRootCompatibility = enableRootCompatibility;
 
   // 第三部分：Webhook 配置
   const { enableWebhook } = await inquirer.prompt([
@@ -566,7 +557,7 @@ async function configureSettings() {
   console.log('');
   console.log(chalk.bold.cyan('配置摘要:'));
   console.log(`  ${chalk.white('端口:')} ${config.port}`);
-  console.log(`  ${chalk.white('安全:')} allowRoot=${config.allowRoot ? chalk.red('true') : chalk.green('false')}, securityCheck=${config.securityCheck ? chalk.green('true') : chalk.red('false')}`);
+  console.log(`  ${chalk.white('Root 兼容:')} ${config.enableRootCompatibility !== false ? chalk.green('已启用') : chalk.gray('未启用')}`);
   console.log(`  ${chalk.white('Webhook:')} ${config.webhook.enabled ? chalk.green('已启用') : chalk.gray('未启用')}`);
   if (config.webhook.enabled && config.webhook.defaultUrl) {
     console.log(`  ${chalk.white('URL:')} ${config.webhook.defaultUrl}`);

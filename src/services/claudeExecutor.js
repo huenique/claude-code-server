@@ -163,6 +163,16 @@ class ClaudeExecutor {
       const env = { ...process.env };
       env.PATH = `${this.config.nvmBin}:${env.PATH}`;
 
+      // 根据配置决定是否使用 IS_SANDBOX=1 环境变量
+      // 这是为了绕过 Claude CLI 在 root 用户下对 --allow-dangerously-skip-permissions 的限制
+      if (this.config.enableRootCompatibility !== false) {
+        env.IS_SANDBOX = '1';
+        const isRunningAsRoot = process.getuid() === 0;
+        if (isRunningAsRoot) {
+          this.logger.warn('Root compatibility mode enabled - using IS_SANDBOX=1 to bypass Claude CLI root restrictions');
+        }
+      }
+
       const child = spawn(this.config.claudePath, args, {
         cwd: projectPath,
         env,
