@@ -1,8 +1,23 @@
 const fs = require('fs');
 const path = require('path');
-const { Low } = require('lowdb');
-const { JSONFile } = require('lowdb/node');
 const crypto = require('crypto');
+
+// 动态导入 LowDB ESM 模块
+async function loadLowDB() {
+  const lowdb = await import('lowdb');
+  return lowdb;
+}
+
+// 创建 CommonJS 兼容的导入函数
+async function getLowDB() {
+  const lowdb = await loadLowDB();
+  return lowdb.Low;
+}
+
+async function getJSONFile() {
+  const lowdb = await loadLowDB();
+  return lowdb.JSONFile;
+}
 
 /**
  * 带文件锁的基础存储类
@@ -25,9 +40,13 @@ class BaseStore {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
 
+    // 动态导入 ESM 模块
+    const LowDB = await getLowDB();
+    const JSONFile = await getJSONFile();
+
     // 初始化 LowDB
     const adapter = new JSONFile(this.dbPath);
-    this.db = new Low(adapter, this.getDefaultData());
+    this.db = new LowDB(adapter, this.getDefaultData());
 
     // 读取数据
     await this.db.read();
