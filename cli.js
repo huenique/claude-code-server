@@ -105,6 +105,17 @@ async function startServer() {
   const spinner = ora('启动 Claude Code 服务...').start();
 
   try {
+    // 确保日志目录存在
+    const logDir = path.dirname(logFile);
+    if (!fs.existsSync(logDir)) {
+      try {
+        fs.mkdirSync(logDir, { recursive: true });
+        console.log(chalk.gray(`✅ 创建日志目录: ${logDir}`));
+      } catch (err) {
+        console.error(chalk.red(`❌ 创建日志目录失败 ${logDir}:`, err.message));
+      }
+    }
+
     // 使用 detached 模式启动后台进程
     const out = fs.openSync(logFile, 'a');
     const err = fs.openSync(logFile, 'a');
