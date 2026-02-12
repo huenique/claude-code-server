@@ -19,46 +19,71 @@ const defaultConfig = {
   pidFile: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'server.pid'),
   dataDir: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'data'),
   sessionRetentionDays: 30,
-  taskQueue: {
-    concurrency: 3,
-    defaultTimeout: 300000
-  },
-  rateLimit: {
-    enabled: true,
-    windowMs: 60000,
-    maxRequests: 100
-  },
-  defaultModel: 'claude-sonnet-4-5',
-  maxBudgetUsd: 10.0,
-  webhook: {
-    enabled: false,
-    defaultUrl: null,
-    timeout: 5000,
-    retries: 3
-  },
-  statistics: {
-    enabled: true,
-    collectionInterval: 60000
-  },
-  mcp: {
-    enabled: false,
-    configPath: null
-  },
-  logLevel: 'info'
+  allowRoot: false,  // 默认不允许以 root 运行
+  securityCheck: true,  // 默认启用安全检查
 };
 
 // 加载配置（支持异步路径检测）
 async function loadConfig() {
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true });
+  // 确保所有必要目录都存在
+  const dirsToCreate = [
+    configDir,
+    path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'logs'),
+    path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'data'),
+  ];
+
+  for (const dir of dirsToCreate) {
+    if (!fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`✅ 创建目录: ${dir}`);
+      } catch (err) {
+        console.error(`❌ 创建目录失败 ${dir}:`, err.message);
+        // 尝试继续，不中断流程
+      }
+    }
   }
 
   let config;
   if (!fs.existsSync(configPath)) {
     // 首次启动，使用默认配置
     config = { ...defaultConfig };
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      console.log(`✅ 创建配置文件: ${configPath}`);
+    } catch (err) {
+      console.error(`❌ 创建配置文件失败 ${configPath}:`, err.message);
+      throw err;
+    }
   } else {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  }
+
+  // 检查是否需要启用安全检查
+  const needsSecurityCheck = config.securityCheck !== false && config.allowRoot !== true;
+  const isRunningAsRoot = process.getuid() === 0; // UID 0 = root
+
+  // 如果启用安全检查且以 root 运行
+  if (needsSecurityCheck && isRunningAsRoot) {
+    // 自动设置 allowRoot = true
+    config.allowRoot = true;
+
+    console.error('');
+    console.error(chalk.red.bold('═════════════════════════════════════════'));
+    console.error(chalk.red.bold('⚠️  安全警告：Claude CLI 不允许以 root 用户运行'));
+    console.error('');
+    console.error(chalk.yellow('出于安全考虑，Claude CLI 拒绝在提权环境下执行。'));
+    console.error('');
+    console.error(chalk.yellow('解决方案：'));
+    console.error(chalk.white('  1. 以普通用户身份运行服务'));
+    console.error(chalk.white('  2. 在配置中添加 "allowRoot": true'));
+    console.error('');
+    console.error(chalk.gray('如需继续以 root 运行，请设置环境变量：'));
+    console.error(chalk.gray('  export ALLOW_ROOT=true'));
+    console.error('');
+    console.error(chalk.red.bold('═══════════════════════════════════════'));
+    console.error('');
+    process.exit(1);
   }
 
   // 自动检测和修复路径
@@ -69,7 +94,12 @@ async function loadConfig() {
 
   // 如果路径有更新，保存配置
   if (updates.length > 0) {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+      console.log(`✅ 配置已更新: ${configPath}`);
+    } catch (err) {
+      console.error(`❌ 更新配置失败 ${configPath}:`, err.message);
+    }
   }
 
   // 保存诊断信息用于日志输出
@@ -140,6 +170,7 @@ async function main() {
   const StatisticsCollector = require('./src/services/statisticsCollector');
   const TaskQueue = require('./src/services/taskQueue');
   const WebhookNotifier = require('./src/services/webhookNotifier');
+
   const claudeExecutor = new ClaudeExecutor(config, sessionStore, statsStore);
   const sessionManager = new SessionManager(config, sessionStore, claudeExecutor);
   const rateLimiter = new RateLimiter(config);
@@ -183,8 +214,6 @@ async function main() {
     try {
       reloadCount++;
 
-      logger.info(`[Config Reload #${reloadCount}] 检测到配置文件变化，重新加载配置...`);
-
       // 重新加载配置
       const newConfig = await loadConfig();
 
@@ -195,9 +224,6 @@ async function main() {
         // 更新 TaskQueue 并发数
         taskQueue.concurrency = newConfig.taskQueue?.concurrency || 3;
         taskQueue.defaultTimeout = newConfig.taskQueue?.defaultTimeout || 300000;
-      }
-      if (newConfig.taskQueue?.defaultTimeout !== config.taskQueue?.defaultTimeout) {
-        configChanges.push(`taskQueue.defaultTimeout: ${config.taskQueue?.defaultTimeout} → ${newConfig.taskQueue?.defaultTimeout}`);
       }
       if (newConfig.rateLimit?.enabled !== config.rateLimit?.enabled) {
         configChanges.push(`rateLimit.enabled: ${config.rateLimit?.enabled} → ${newConfig.rateLimit?.enabled}`);
@@ -221,8 +247,8 @@ async function main() {
       }
 
       logger.info(`[Config Reload #${reloadCount}] 当前任务队列并发数: ${taskQueue.concurrency}`);
-
     } catch (error) {
+      const logger = require('./src/utils/logger')({ logFile: config.logFile, logLevel: 'error' });
       logger.error(`[Config Reload #${reloadCount}] 配置重载失败:`, { error: error.message });
     }
   }
@@ -249,21 +275,23 @@ async function main() {
           }, DEBOUNCE_DELAY);
         }
       });
-
+      const logger = require('./src/utils/logger')({ logFile: config.logFile, logLevel: config.logLevel });
       logger.info(`配置文件监听已启动: ${configPath}`);
       logger.info('配置文件修改将自动生效（热重载）');
     } catch (error) {
+      const logger = require('./src/utils/logger')({ logFile: config.logFile, logLevel: 'error' });
       logger.error('启动配置文件监听失败:', { error: error.message });
     }
   }
 
-  // 启动服务器
+// 启动服务器
   const server = app.listen(PORT, HOST, async () => {
     // 初始化存储
     await sessionStore.init();
     await taskStore.init();
     await statsStore.init();
 
+    const logger = require('./src/utils/logger')({ logFile: config.logFile, logLevel: config.logLevel });
     logger.info(`Claude Code Server started on http://${HOST}:${PORT}`);
     logger.info(`Claude path: ${config.claudePath}`);
     logger.info(`NVM bin: ${config.nvmBin}`);
@@ -290,6 +318,7 @@ async function main() {
 
   // 优雅关闭
   async function shutdown(signal) {
+    const logger = require('./src/utils/logger')({ logFile: config.logFile, logLevel: config.logLevel });
     logger.info(`${signal} received, shutting down gracefully...`);
 
     // 停止配置文件监听
@@ -312,7 +341,6 @@ async function main() {
       if (fs.existsSync(config.pidFile)) {
         fs.unlinkSync(config.pidFile);
       }
-
       process.exit(0);
     });
 
@@ -325,17 +353,14 @@ async function main() {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-
-  return app;
 }
 
-// 如果直接运行此文件，启动服务器
+module.exports = main;
+
+// 如果直接运行此文件，捕获错误
 if (require.main === module) {
   main().catch(err => {
     console.error('Failed to start server:', err);
     process.exit(1);
   });
 }
-
-// 导出 main 函数供测试使用
-module.exports = main;
