@@ -128,6 +128,7 @@ async function startServer() {
         ...process.env,
         NODE_ENV: 'production', // 设置为生产环境，禁用控制台日志
         CLAUDE_BACKGROUND: 'true', // 额外的后台模式标记
+        ALLOW_ROOT: config.allowRoot ? 'true' : 'false', // 传递 allowRoot 配置
       },
     });
 
@@ -443,6 +444,8 @@ async function configureSettings() {
 
   // 更新基本配置
   Object.assign(config, basicAnswers);
+
+  // 第二部分：安全配置
 
   // 第二部分：Webhook 配置
   const { enableWebhook } = await inquirer.prompt([
