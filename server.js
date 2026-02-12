@@ -3,51 +3,20 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// 获取用户主目录（兼容 sudo 环境）
-function getHomeDir() {
-  // 1. 优先使用 HOME 环境变量
-  if (process.env.HOME && process.env.HOME !== '/root') {
-    return process.env.HOME;
-  }
-
-  // 2. 检查 SUDO_USER 环境变量
-  const sudoUser = process.env.SUDO_USER;
-  if (sudoUser && sudoUser !== 'root') {
-    return path.join('/home', sudoUser);
-  }
-
-  // 3. 检查 USER 环境变量
-  const user = process.env.USER;
-  if (user && user !== 'root') {
-    return path.join('/home', user);
-  }
-
-  // 4. 回退到 os.homedir()
-  const homeDir = os.homedir();
-
-  // 调试输出
-  console.error('[getHomeDir] Using home directory:', homeDir);
-  console.error('[getHomeDir] HOME=' + process.env.HOME);
-  console.error('[getHomeDir] USER=' + process.env.USER);
-  console.error('[getHomeDir] SUDO_USER=' + process.env.SUDO_USER);
-
-  return homeDir;
-}
-
 // 配置目录和文件
-const configDir = path.join(getHomeDir(), '.claude-code-server');
+const configDir = path.join(process.env.HOME || os.homedir(), '.claude-code-server');
 const configPath = path.join(configDir, 'config.json');
 
 // 默认配置（用于未找到路径时的回退）
 const defaultConfig = {
   port: 5546,
   host: '0.0.0.0',
-  claudePath: path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.21.0', 'bin', 'claude'),
-  nvmBin: path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.21.0', 'bin'),
-  defaultProjectPath: path.join(os.homedir(), 'workspace'),
-  logFile: path.join(os.homedir(), '.claude-code-server', 'logs', 'server.log'),
-  pidFile: path.join(os.homedir(), '.claude-code-server', 'server.pid'),
-  dataDir: path.join(os.homedir(), '.claude-code-server', 'data'),
+  claudePath: path.join(process.env.HOME || os.homedir(), '.nvm', 'versions', 'node', 'v22.21.0', 'bin', 'claude'),
+  nvmBin: path.join(process.env.HOME || os.homedir(), '.nvm', 'versions', 'node', 'v22.21.0', 'bin'),
+  defaultProjectPath: path.join(process.env.HOME || os.homedir(), 'workspace'),
+  logFile: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'logs', 'server.log'),
+  pidFile: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'server.pid'),
+  dataDir: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'data'),
   sessionRetentionDays: 30,
   taskQueue: {
     concurrency: 3,
