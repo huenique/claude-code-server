@@ -7,7 +7,7 @@ const fs = require('fs');
  */
 class Logger {
   constructor(config = {}) {
-    this.logFile = config.logFile || './logs/server.log';
+    this.logFile = config.logFile || path.join(require('os').homedir(), '.claude-code-server', 'logs', 'server.log');
     this.logLevel = config.logLevel || 'info';
     this.logger = null;
   }

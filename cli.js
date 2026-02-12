@@ -12,16 +12,14 @@ const os = require('os');
 const configDir = path.join(os.homedir(), '.claude-code-server');
 const configPath = path.join(configDir, 'config.json');
 const defaultConfig = {
-  port: 3000,
+  port: 5546,
   host: '0.0.0.0',
   claudePath: path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.21.0', 'bin', 'claude'),
   nvmBin: path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.21.0', 'bin'),
   defaultProjectPath: path.join(os.homedir(), 'workspace'),
-  logFile: './logs/server.log',
-  pidFile: './logs/server.pid',
-  dataDir: './data',
-  storageType: 'memory',
-  redisUrl: null,
+  logFile: path.join(os.homedir(), '.claude-code-server', 'logs', 'server.log'),
+  pidFile: path.join(os.homedir(), '.claude-code-server', 'server.pid'),
+  dataDir: path.join(os.homedir(), '.claude-code-server', 'data'),
   sessionRetentionDays: 30,
   taskQueue: {
     concurrency: 3,
@@ -524,35 +522,6 @@ async function configureSettings() {
     defaultTimeout: queueAnswers.timeout,
   };
 
-  // 第四部分：存储配置
-  const storageAnswers = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'storageType',
-      message: '存储类型:',
-      choices: [
-        { name: '内存存储 (推荐用于单机)', value: 'memory' },
-        { name: 'Redis (推荐用于分布式)', value: 'redis' },
-      ],
-      default: config.storageType || 'memory',
-    },
-  ]);
-
-  config.storageType = storageAnswers.storageType;
-
-  // 如果选择 Redis，询问 Redis URL
-  if (storageAnswers.storageType === 'redis') {
-    const { redisUrl } = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'redisUrl',
-        message: 'Redis URL:',
-        default: config.redisUrl || 'redis://localhost:6379',
-      },
-    ]);
-    config.redisUrl = redisUrl;
-  }
-
   // 保存配置
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
@@ -568,7 +537,6 @@ async function configureSettings() {
     console.log(`  ${chalk.white('URL:')} ${config.webhook.defaultUrl}`);
   }
   console.log(`  ${chalk.white('任务队列:')} 并发数 ${config.taskQueue?.concurrency || 3}, 超时 ${config.taskQueue?.defaultTimeout || 300000}ms`);
-  console.log(`  ${chalk.white('存储:')} ${config.storageType === 'memory' ? '内存' : 'Redis'}`);
   console.log('');
 }
 
@@ -634,7 +602,7 @@ async function showApiDocs() {
   console.log(chalk.white('描述: ') + '获取服务配置信息');
   console.log(chalk.white('响应:'));
   console.log('  {');
-  console.log('    "port": 3000,');
+  console.log('    "port": 5546,');
   console.log('    "defaultProjectPath": "/home/junhang/workspace",');
   console.log('    "version": "1.0.0"');
   console.log('  }');

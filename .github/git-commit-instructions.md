@@ -1,0 +1,1 @@
+Generate according to GitHub's commit specifications.

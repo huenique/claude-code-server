@@ -25,7 +25,7 @@ Claude Code Server is a full-featured HTTP API service that wraps the Anthropic 
 - 🔄 **Batch Processing** - Process up to 10 requests at once
 - 🚦 **Rate Limiting** - Configurable API access frequency control
 - 📝 **MCP Support** - Model Context Protocol configuration support
-- 💾 **Multiple Storage Backends** - Switch between in-memory or Redis storage
+- 💾 **File-based Storage** - Persistent JSON file storage for sessions, tasks, and statistics
 - ⚙ **Hot Config Reload** - Update configuration without server restart
 - 🖥️ **TUI Management Tool** - Visual server management and monitoring
 
@@ -58,15 +58,14 @@ The configuration file is located at `~/.claude-code-server/config.json` (auto-g
 
 ```json
 {
-  "port": 3000,
+  "port": 5546,
   "host": "0.0.0.0",
   "claudePath": "~/.nvm/versions/node/v22.21.0/bin/claude",
   "nvmBin": "~/.nvm/versions/node/v22.21.0/bin",
   "defaultProjectPath": "~/workspace",
-  "logFile": "./logs/server.log",
-  "pidFile": "./logs/server.pid",
-  "dataDir": "./data",
-  "storageType": "memory",
+  "logFile": "~/.claude-code-server/logs/server.log",
+  "pidFile": "~/.claude-code-server/server.pid",
+  "dataDir": "~/.claude-code-server/data",
   "taskQueue": {
     "concurrency": 3,
     "defaultTimeout": 300000
@@ -111,10 +110,10 @@ node cli.js status  # Check status
 
 ```bash
 # Health check
-curl http://localhost:3000/health
+curl http://localhost:5546/health
 
 # Test API
-curl -X POST http://localhost:3000/api/claude \
+curl -X POST http://localhost:5546/api/claude \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Explain what HTTP is"}'
 ```
@@ -306,16 +305,14 @@ node cli.js
 
 | Config | Type | Default | Description |
 |--------|------|---------|-------------|
-| `port` | number | 3000 | Server port |
+| `port` | number | 5546 | Server port |
 | `host` | string | "0.0.0.0" | Listen address |
 | `claudePath` | string | - | Claude CLI executable path |
 | `nvmBin` | string | - | NVM bin directory path |
 | `defaultProjectPath` | string | - | Default project path |
-| `logFile` | string | "./logs/server.log" | Log file path |
-| `pidFile` | string | "./logs/server.pid" | PID file path |
-| `dataDir` | string | "./data" | Data storage directory |
-| `storageType` | string | "memory" | Storage type (memory/redis) |
-| `redisUrl` | string | null | Redis connection URL |
+| `logFile` | string | "~/.claude-code-server/logs/server.log" | Log file path |
+| `pidFile` | string | "~/.claude-code-server/server.pid" | PID file path |
+| `dataDir` | string | "~/.claude-code-server/data" | Data storage directory |
 | `sessionRetentionDays` | number | 30 | Session retention days |
 | `taskQueue.concurrency` | number | 3 | Task queue concurrency |
 | `taskQueue.defaultTimeout` | number | 300000 | Task timeout (milliseconds) |
@@ -389,50 +386,16 @@ sudo systemctl enable claude-code-server
 sudo systemctl start claude-code-server
 ```
 
-### Docker Deployment
-
-Create `Dockerfile`:
-
-```dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-
-EXPOSE 3000
-
-CMD ["node", "server.js"]
-```
-
-Build and run:
-
-```bash
-# Build image
-docker build -t claude-code-server .
-
-# Run container
-docker run -d \
-  -p 3000:3000 \
-  -v ~/.claude-code-server:/app/.claude-code-server \
-  -v ~/workspace:/workspace \
-  --name claude-code-server \
-  claude-code-server
-```
-
 ## 🔧 Troubleshooting
 
 ### Service Won't Start
 
 ```bash
 # Check port occupation
-lsof -i :3000
+lsof -i :5546
 
 # Check logs
-tail -f logs/server.log
+tail -f ~/.claude-code-server/logs/server.log
 
 # Check configuration
 cat ~/.claude-code-server/config.json
@@ -442,7 +405,7 @@ cat ~/.claude-code-server/config.json
 
 ```bash
 # Check queue status
-curl http://localhost:3000/api/tasks/queue/status
+curl http://localhost:5546/api/tasks/queue/status
 
 # Check configured concurrency
 cat ~/.claude-code-server/config.json | grep concurrency
@@ -463,10 +426,9 @@ node cli.js
 ## 📂 Project Structure
 
 ```
-claude-api-server/
+claude-code-server/
 ├── server.js                 # Main server entry
 ├── cli.js                    # TUI management tool
-├── config.json              # Configuration file (auto-generated)
 ├── package.json
 ├── src/
 │   ├── routes/              # API routes
@@ -490,10 +452,16 @@ claude-api-server/
 │   └── utils/
 │       ├── logger.js
 │       └── validators.js
-├── data/                     # Data directory
-├── logs/                     # Logs directory
 └── README.md
 ```
+
+**Data and Configuration Files:**
+
+All configuration and data files are stored in `~/.claude-code-server/`:
+- `config.json` - Configuration file
+- `logs/` - Log files directory
+- `server.pid` - Process ID file
+- `data/` - Data storage (sessions, tasks, statistics)
 
 ## 🔒 Security Recommendations
 

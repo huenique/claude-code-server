@@ -25,7 +25,7 @@ Claude Code Server 是一个功能完整的 HTTP API 服务，将 Anthropic Clau
 - 🔄 **批量处理** - 一次处理最多 10 个请求
 - 🚦 **速率限制** - 可配置的 API 访问频率控制
 - 📝 **MCP 支持** - Model Context Protocol 配置支持
-- 💾 **多存储后端** - 内存存储或 Redis 切换
+- 💾 **文件存储** - 基于持久化 JSON 文件存储会话、任务和统计数据
 - ⚙ **配置热重载** - 无需重启更新配置
 - 🖥️ **TUI 管理工具** - 可视化服务器管理和监控
 
@@ -58,15 +58,14 @@ yarn install
 
 ```json
 {
-  "port": 3000,
+  "port": 5546,
   "host": "0.0.0.0",
   "claudePath": "~/.nvm/versions/node/v22.21.0/bin/claude",
   "nvmBin": "~/.nvm/versions/node/v22.21.0/bin",
   "defaultProjectPath": "~/workspace",
-  "logFile": "./logs/server.log",
-  "pidFile": "./logs/server.pid",
-  "dataDir": "./data",
-  "storageType": "memory",
+  "logFile": "~/.claude-code-server/logs/server.log",
+  "pidFile": "~/.claude-code-server/server.pid",
+  "dataDir": "~/.claude-code-server/data",
   "taskQueue": {
     "concurrency": 3,
     "defaultTimeout": 300000
@@ -111,10 +110,10 @@ node cli.js status  # 查看状态
 
 ```bash
 # 健康检查
-curl http://localhost:3000/health
+curl http://localhost:5546/health
 
 # 测试 API
-curl -X POST http://localhost:3000/api/claude \
+curl -X POST http://localhost:5546/api/claude \
   -H "Content-Type: application/json" \
   -d '{"prompt": "解释一下什么是 HTTP"}'
 ```
@@ -306,16 +305,14 @@ node cli.js
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `port` | number | 3000 | 服务端口 |
+| `port` | number | 5546 | 服务端口 |
 | `host` | string | "0.0.0.0" | 监听地址 |
 | `claudePath` | string | - | Claude CLI 可执行文件路径 |
 | `nvmBin` | string | - | NVM bin 目录路径 |
 | `defaultProjectPath` | string | - | 默认项目路径 |
-| `logFile` | string | "./logs/server.log" | 日志文件路径 |
-| `pidFile` | string | "./logs/server.pid" | PID 文件路径 |
-| `dataDir` | string | "./data" | 数据存储目录 |
-| `storageType` | string | "memory" | 存储类型（memory/redis） |
-| `redisUrl` | string | null | Redis 连接 URL |
+| `logFile` | string | "~/.claude-code-server/logs/server.log" | 日志文件路径 |
+| `pidFile` | string | "~/.claude-code-server/server.pid" | PID 文件路径 |
+| `dataDir` | string | "~/.claude-code-server/data" | 数据存储目录 |
 | `sessionRetentionDays` | number | 30 | 会话保留天数 |
 | `taskQueue.concurrency` | number | 3 | 任务队列并发数 |
 | `taskQueue.defaultTimeout` | number | 300000 | 任务超时时间（毫秒） |
@@ -389,50 +386,16 @@ sudo systemctl enable claude-code-server
 sudo systemctl start claude-code-server
 ```
 
-### Docker 部署
-
-创建 `Dockerfile`：
-
-```dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-
-EXPOSE 3000
-
-CMD ["node", "server.js"]
-```
-
-构建和运行：
-
-```bash
-# 构建镜像
-docker build -t claude-code-server .
-
-# 运行容器
-docker run -d \
-  -p 3000:3000 \
-  -v ~/.claude-code-server:/app/.claude-code-server \
-  -v ~/workspace:/workspace \
-  --name claude-code-server \
-  claude-code-server
-```
-
 ## 🔧 故障排查
 
 ### 服务无法启动
 
 ```bash
 # 检查端口占用
-lsof -i :3000
+lsof -i :5546
 
 # 检查日志
-tail -f logs/server.log
+tail -f ~/.claude-code-server/logs/server.log
 
 # 检查配置
 cat ~/.claude-code-server/config.json
@@ -442,7 +405,7 @@ cat ~/.claude-code-server/config.json
 
 ```bash
 # 检查队列状态
-curl http://localhost:3000/api/tasks/queue/status
+curl http://localhost:5546/api/tasks/queue/status
 
 # 检查配置的并发数
 cat ~/.claude-code-server/config.json | grep concurrency
@@ -463,10 +426,9 @@ node cli.js
 ## 📂 项目结构
 
 ```
-claude-api-server/
+claude-code-server/
 ├── server.js                 # 主服务器入口
 ├── cli.js                    # TUI 管理工具
-├── config.json              # 配置文件（自动生成）
 ├── package.json
 ├── src/
 │   ├── routes/              # API 路由
@@ -490,10 +452,16 @@ claude-api-server/
 │   └── utils/
 │       ├── logger.js
 │       └── validators.js
-├── data/                     # 数据目录
-├── logs/                     # 日志目录
 └── README_zh.md
 ```
+
+**数据和配置文件位置：**
+
+所有配置和数据文件都存储在 `~/.claude-code-server/` 目录下：
+- `config.json` - 配置文件
+- `logs/` - 日志文件目录
+- `server.pid` - 进程 ID 文件
+- `data/` - 数据存储（会话、任务、统计）
 
 ## 🔒 安全建议
 
