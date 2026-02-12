@@ -5,17 +5,33 @@ const os = require('os');
 
 // 获取用户主目录（兼容 sudo 环境）
 function getHomeDir() {
-  // 优先使用环境变量中的 HOME
+  // 1. 优先使用 HOME 环境变量
   if (process.env.HOME && process.env.HOME !== '/root') {
     return process.env.HOME;
   }
-  // 如果使用 sudo，尝试获取实际用户的 home
-  const sudoUser = process.env.SUDO_USER || process.env.USER;
+
+  // 2. 检查 SUDO_USER 环境变量
+  const sudoUser = process.env.SUDO_USER;
   if (sudoUser && sudoUser !== 'root') {
     return path.join('/home', sudoUser);
   }
-  // 回退到 os.homedir()
-  return os.homedir();
+
+  // 3. 检查 USER 环境变量
+  const user = process.env.USER;
+  if (user && user !== 'root') {
+    return path.join('/home', user);
+  }
+
+  // 4. 回退到 os.homedir()
+  const homeDir = os.homedir();
+
+  // 调试输出
+  console.error('[getHomeDir] Using home directory:', homeDir);
+  console.error('[getHomeDir] HOME=' + process.env.HOME);
+  console.error('[getHomeDir] USER=' + process.env.USER);
+  console.error('[getHomeDir] SUDO_USER=' + process.env.SUDO_USER);
+
+  return homeDir;
 }
 
 // 配置目录和文件
