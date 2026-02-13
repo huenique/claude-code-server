@@ -68,8 +68,12 @@ function createClaudeRoutes(
       }
     }
 
+    const shouldFallbackToAsyncOnWindows =
+      process.platform === 'win32' && isAsync === false;
+    const useAsyncMode = Boolean(isAsync) || shouldFallbackToAsyncOnWindows;
+
     // Async execution mode
-    if (isAsync) {
+    if (useAsyncMode) {
       if (!taskQueue) {
         return res.status(501).json({
           success: false,
@@ -99,12 +103,15 @@ function createClaudeRoutes(
 
         return res.status(202).json({
           success: true,
-          message: 'Task created successfully',
+          message: shouldFallbackToAsyncOnWindows
+            ? 'Synchronous execution is not supported on Windows; request was queued as async task'
+            : 'Task created successfully',
           task_id: task.id,
           status: task.status,
           priority: task.priority,
           session_id: sessionId, // Return session_id
           webhook_url: task.metadata.webhook_url,
+          fallback_async: shouldFallbackToAsyncOnWindows,
         });
       } catch (error) {
         return res.status(500).json({

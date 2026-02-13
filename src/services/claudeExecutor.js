@@ -170,7 +170,8 @@ class ClaudeExecutor {
       // This is used to bypass Claude CLI restrictions on --allow-dangerously-skip-permissions for root users
       if (this.config.enableRootCompatibility !== false) {
         env.IS_SANDBOX = '1';
-        const isRunningAsRoot = process.getuid() === 0;
+        const isRunningAsRoot =
+          typeof process.getuid === 'function' && process.getuid() === 0;
         if (isRunningAsRoot) {
           this.logger.warn(
             'Root compatibility mode enabled - using IS_SANDBOX=1 to bypass Claude CLI root restrictions',
