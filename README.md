@@ -14,6 +14,7 @@ Claude Code Server is a full-featured HTTP API service that wraps the Anthropic 
 ## ✨ Features
 
 ### Core Features
+
 - 🚀 **HTTP API** - Clean RESTful API interface
 - 💬 **Session Management** - Automatically create and manage multi-turn conversation contexts
 - ⚡ **Async Tasks** - Priority-based task queue system
@@ -21,6 +22,7 @@ Claude Code Server is a full-featured HTTP API service that wraps the Anthropic 
 - 🔔 **Webhook Callbacks** - Automatic notifications when async tasks complete
 
 ### Advanced Features
+
 - 🎯 **Task Priority** - Support for priority levels 1-10 scheduling
 - 🔄 **Batch Processing** - Process up to 10 requests at once
 - 🚦 **Rate Limiting** - Configurable API access frequency control
@@ -90,7 +92,7 @@ The configuration file is located at `~/.claude-code-server/config.json` (auto-g
 
 ### 2. Start the Service
 
-**Method 1: Using TUI (Recommended)**
+#### Method 1: Using TUI (Recommended)
 
 ```bash
 npm run cli
@@ -98,7 +100,7 @@ npm run cli
 node cli.js
 ```
 
-**Method 2: Command Line**
+#### Method 2: Command Line
 
 ```bash
 node cli.js start   # Start the service
@@ -137,6 +139,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -162,6 +165,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -175,6 +179,7 @@ Content-Type: application/json
 ### Session Management
 
 **Create Session:**
+
 ```http
 POST /api/sessions
 Content-Type: application/json
@@ -186,6 +191,7 @@ Content-Type: application/json
 ```
 
 **Continue Conversation:**
+
 ```http
 POST /api/sessions/:id/continue
 Content-Type: application/json
@@ -196,16 +202,19 @@ Content-Type: application/json
 ```
 
 **List Sessions:**
+
 ```http
 GET /api/sessions
 ```
 
 **View Session Details:**
+
 ```http
 GET /api/sessions/:id
 ```
 
 **Delete Session:**
+
 ```http
 DELETE /api/sessions/:id
 ```
@@ -213,6 +222,7 @@ DELETE /api/sessions/:id
 ### Task Management
 
 **Create Async Task:**
+
 ```http
 POST /api/tasks/async
 Content-Type: application/json
@@ -225,11 +235,13 @@ Content-Type: application/json
 ```
 
 **View Task Status:**
+
 ```http
 GET /api/tasks/:id
 ```
 
 **Adjust Task Priority:**
+
 ```http
 PATCH /api/tasks/:id/priority
 Content-Type: application/json
@@ -240,11 +252,13 @@ Content-Type: application/json
 ```
 
 **Cancel Task:**
+
 ```http
 DELETE /api/tasks/:id
 ```
 
 **View Queue Status:**
+
 ```http
 GET /api/tasks/queue/status
 ```
@@ -267,11 +281,13 @@ Content-Type: application/json
 ### Statistics Query
 
 **View Statistics Summary:**
+
 ```http
 GET /api/statistics/summary
 ```
 
 **View Daily Statistics:**
+
 ```http
 GET /api/statistics
 ```
@@ -304,7 +320,7 @@ node cli.js
 ### Complete Configuration Options
 
 | Config | Type | Default | Description |
-|--------|------|---------|-------------|
+| -------- | ------ | --------- | ------------- |
 | `port` | number | 5546 | Server port |
 | `host` | string | "0.0.0.0" | Listen address |
 | `claudePath` | string | - | Claude CLI executable path |
@@ -425,7 +441,7 @@ node cli.js
 
 ## 📂 Project Structure
 
-```
+```sh
 claude-code-server/
 ├── server.js                 # Main server entry
 ├── cli.js                    # TUI management tool
@@ -458,6 +474,7 @@ claude-code-server/
 **Data and Configuration Files:**
 
 All configuration and data files are stored in `~/.claude-code-server/`:
+
 - `config.json` - Configuration file
 - `logs/` - Log files directory
 - `server.pid` - Process ID file
