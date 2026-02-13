@@ -1,10 +1,10 @@
 /**
- * 创建统计路由
+ * Statistics routes
  */
 function createStatisticsRoutes(statsCollector) {
   const router = require('express').Router();
 
-  // GET /api/statistics/summary - 获取汇总统计
+  // GET /api/statistics/summary - Get summary statistics
   router.get('/summary', async (req, res) => {
     try {
       const summary = await statsCollector.getSummary();
@@ -20,7 +20,7 @@ function createStatisticsRoutes(statsCollector) {
     }
   });
 
-  // GET /api/statistics/daily - 获取每日统计
+  // GET /api/statistics/daily - Get daily statistics
   router.get('/daily', async (req, res) => {
     try {
       const options = {
@@ -41,7 +41,7 @@ function createStatisticsRoutes(statsCollector) {
     }
   });
 
-  // GET /api/statistics/range - 获取日期范围统计
+  // GET /api/statistics/range - Get date-range statistics
   router.get('/range', async (req, res) => {
     const { start, end } = req.query;
 
@@ -67,7 +67,7 @@ function createStatisticsRoutes(statsCollector) {
     }
   });
 
-  // GET /api/statistics/models - 获取热门模型
+  // GET /api/statistics/models - Get popular models
   router.get('/models', async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit) : 10;
@@ -85,7 +85,7 @@ function createStatisticsRoutes(statsCollector) {
     }
   });
 
-  // GET /api/statistics - 获取完整统计
+  // GET /api/statistics - Get full statistics
   router.get('/', async (req, res) => {
     try {
       const summary = await statsCollector.getSummary();

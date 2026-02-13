@@ -3,31 +3,38 @@ const path = require('path');
 const fs = require('fs');
 
 /**
- * 日志工具
+ * Logger utility
  */
 class Logger {
   constructor(config = {}) {
-    this.logFile = config.logFile || path.join(process.env.HOME || require('os').homedir(), '.claude-code-server', 'logs', 'server.log');
+    this.logFile =
+      config.logFile ||
+      path.join(
+        process.env.HOME || require('os').homedir(),
+        '.claude-code-server',
+        'logs',
+        'server.log',
+      );
     this.logLevel = config.logLevel || 'info';
     this.logger = null;
   }
 
   /**
-   * 初始化日志
+   * Initialize logger
    */
   init() {
-    // 如果 logger 已存在，不重新创建（避免重复初始化）
+    // If logger already exists, do not recreate it (avoid duplicate initialization)
     if (this.logger) {
       return;
     }
 
-    // 确保日志目录存在
+    // Ensure log directory exists
     const logDir = path.dirname(this.logFile);
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true });
     }
 
-    // 只使用文件传输，完全不使用控制台输出
+    // Use file transport only, no console output
     const transports = [
       new winston.transports.File({
         filename: this.logFile,
@@ -36,15 +43,15 @@ class Logger {
       }),
     ];
 
-    // 创建 logger
+    // Create logger
     this.logger = winston.createLogger({
       level: this.logLevel,
       format: winston.format.combine(
         winston.format.timestamp({
-          format: 'YYYY-MM-DD HH:mm:ss'
+          format: 'YYYY-MM-DD HH:mm:ss',
         }),
         winston.format.errors({ stack: true }),
-        winston.format.json()
+        winston.format.json(),
       ),
       transports,
     });
@@ -75,11 +82,11 @@ class Logger {
   }
 }
 
-// 单例 - 简化实现，避免重复创建
+// Singleton - simplified implementation to avoid duplicate creation
 let loggerInstance = null;
 
 function getLogger(config) {
-  // 如果实例不存在，创建新实例
+  // If instance does not exist, create a new one
   if (!loggerInstance) {
     loggerInstance = new Logger(config);
     loggerInstance.init();

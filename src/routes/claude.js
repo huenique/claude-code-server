@@ -2,12 +2,17 @@ const Validators = require('../utils/validators');
 const crypto = require('crypto');
 
 /**
- * Claude API 路由
+ * Claude API routes
  */
-function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionManager = null) {
+function createClaudeRoutes(
+  claudeExecutor,
+  config,
+  taskQueue = null,
+  sessionManager = null,
+) {
   const router = require('express').Router();
 
-  // POST /api/claude - 单个请求（支持同步和异步）
+  // POST /api/claude - Single request (supports sync and async)
   router.post('/', async (req, res) => {
     const {
       prompt,
@@ -26,7 +31,7 @@ function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionMan
       priority,
     } = req.body;
 
-    // 验证请求
+    // Validate request
     const validation = Validators.validateClaudeRequest(req.body);
     if (!validation.valid) {
       return res.status(400).json({
@@ -37,7 +42,7 @@ function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionMan
 
     const projectPath = project_path || config.defaultProjectPath;
 
-    // 流式输出暂不支持
+    // Streaming output is not supported yet
     if (stream) {
       return res.status(501).json({
         success: false,
@@ -45,7 +50,7 @@ function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionMan
       });
     }
 
-    // 自动创建会话（如果没有 session_id）
+    // Auto-create session (if no session_id)
     let sessionId = session_id;
     if (!sessionId && sessionManager) {
       try {
@@ -58,27 +63,28 @@ function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionMan
         });
         sessionId = session.id;
       } catch (error) {
-        // 如果创建会话失败，继续执行但不使用会话
+        // If session creation fails, continue without session
         console.error('Failed to auto-create session:', error.message);
       }
     }
 
-    // 异步执行模式
+    // Async execution mode
     if (isAsync) {
       if (!taskQueue) {
         return res.status(501).json({
           success: false,
-          error: 'Async execution is not available (task queue not initialized)',
+          error:
+            'Async execution is not available (task queue not initialized)',
         });
       }
 
       try {
-        // 创建异步任务
+        // Create async task
         const task = await taskQueue.addTask({
           prompt,
           project_path: projectPath,
           model,
-          priority: priority || 5, // 默认优先级 5
+          priority: priority || 5, // Default priority: 5
           metadata: {
             webhook_url: webhook_url || config.webhook?.defaultUrl,
             session_id: sessionId,
@@ -97,7 +103,7 @@ function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionMan
           task_id: task.id,
           status: task.status,
           priority: task.priority,
-          session_id: sessionId, // 返回 session_id
+          session_id: sessionId, // Return session_id
           webhook_url: task.metadata.webhook_url,
         });
       } catch (error) {
@@ -108,7 +114,7 @@ function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionMan
       }
     }
 
-    // 同步执行模式（默认）
+    // Sync execution mode (default)
     const result = await claudeExecutor.execute({
       prompt,
       projectPath,
@@ -123,17 +129,19 @@ function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionMan
       stream,
     });
 
-    // 返回结果（包含 session_id）
+    // Return result (including session_id)
     const statusCode = result.success ? 200 : 500;
-    const responseData = result.success ? {
-      ...result,
-      session_id: sessionId, // 返回 session_id
-    } : result;
+    const responseData = result.success
+      ? {
+          ...result,
+          session_id: sessionId, // Return session_id
+        }
+      : result;
 
     res.status(statusCode).json(responseData);
   });
 
-  // POST /api/claude/batch - 批量处理
+  // POST /api/claude/batch - Batch processing
   router.post('/batch', async (req, res) => {
     const validation = Validators.validateBatchRequest(req.body);
     if (!validation.valid) {
@@ -146,23 +154,26 @@ function createClaudeRoutes(claudeExecutor, config, taskQueue = null, sessionMan
     const { prompts, project_path, model } = validation.value;
     const projectPath = project_path || config.defaultProjectPath;
 
-    // 并发执行所有请求
-    const promises = prompts.map(prompt =>
+    // Execute all requests concurrently
+    const promises = prompts.map((prompt) =>
       claudeExecutor.execute({
         prompt,
         projectPath,
         model,
-      })
+      }),
     );
 
     try {
       const results = await Promise.all(promises);
 
-      // 统计结果
-      const successCount = results.filter(r => r.success).length;
-      const failCount = results.filter(r => !r.success).length;
+      // Aggregate results
+      const successCount = results.filter((r) => r.success).length;
+      const failCount = results.filter((r) => !r.success).length;
       const totalCost = results.reduce((sum, r) => sum + (r.cost_usd || 0), 0);
-      const totalDuration = results.reduce((sum, r) => sum + (r.duration_ms || 0), 0);
+      const totalDuration = results.reduce(
+        (sum, r) => sum + (r.duration_ms || 0),
+        0,
+      );
 
       res.json({
         success: true,

@@ -8,27 +8,58 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// 配置目录和文件
-const configDir = path.join(process.env.HOME || os.homedir(), '.claude-code-server');
+// Configuration directory and file
+const configDir = path.join(
+  process.env.HOME || os.homedir(),
+  '.claude-code-server',
+);
 const configPath = path.join(configDir, 'config.json');
 const defaultConfig = {
   port: 5546,
   host: '0.0.0.0',
-  claudePath: path.join(process.env.HOME || os.homedir(), '.nvm', 'versions', 'node', 'v22.21.0', 'bin', 'claude'),
-  nvmBin: path.join(process.env.HOME || os.homedir(), '.nvm', 'versions', 'node', 'v22.21.0', 'bin'),
+  claudePath: path.join(
+    process.env.HOME || os.homedir(),
+    '.nvm',
+    'versions',
+    'node',
+    'v22.21.0',
+    'bin',
+    'claude',
+  ),
+  nvmBin: path.join(
+    process.env.HOME || os.homedir(),
+    '.nvm',
+    'versions',
+    'node',
+    'v22.21.0',
+    'bin',
+  ),
   defaultProjectPath: path.join(process.env.HOME || os.homedir(), 'workspace'),
-  logFile: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'logs', 'server.log'),
-  pidFile: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'server.pid'),
-  dataDir: path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'data'),
+  logFile: path.join(
+    process.env.HOME || os.homedir(),
+    '.claude-code-server',
+    'logs',
+    'server.log',
+  ),
+  pidFile: path.join(
+    process.env.HOME || os.homedir(),
+    '.claude-code-server',
+    'server.pid',
+  ),
+  dataDir: path.join(
+    process.env.HOME || os.homedir(),
+    '.claude-code-server',
+    'data',
+  ),
   sessionRetentionDays: 30,
   taskQueue: {
     concurrency: 3,
-    defaultTimeout: 300000
+    defaultTimeout: 300000,
   },
   rateLimit: {
     enabled: true,
     windowMs: 60000,
-    maxRequests: 100
+    maxRequests: 100,
   },
   defaultModel: 'claude-sonnet-4-5',
   maxBudgetUsd: 10.0,
@@ -36,30 +67,30 @@ const defaultConfig = {
     enabled: false,
     defaultUrl: null,
     timeout: 5000,
-    retries: 3
+    retries: 3,
   },
   statistics: {
     enabled: true,
-    collectionInterval: 60000
+    collectionInterval: 60000,
   },
   mcp: {
     enabled: false,
-    configPath: null
+    configPath: null,
   },
   logLevel: 'info',
-  enableRootCompatibility: true
+  enableRootCompatibility: true,
 };
 
-// 确保配置目录存在并加载配置
+// Ensure config directory exists and load config
 function loadConfig() {
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
   }
 
   if (!fs.existsSync(configPath)) {
-    // 创建默认配置文件
+    // Create default config file
     fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
-    console.log(chalk.yellow(`已创建默认配置文件: ${configPath}`));
+    console.log(chalk.yellow(`Default config file created: ${configPath}`));
   }
 
   return JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -67,11 +98,11 @@ function loadConfig() {
 
 let config = loadConfig();
 
-// 日志和 PID 文件路径
+// Log and PID file paths
 const pidFile = config.pidFile;
 const logFile = config.logFile;
 
-// 检查服务是否在运行
+// Check whether the service is running
 function isServerRunning() {
   try {
     if (!fs.existsSync(pidFile)) {
@@ -80,12 +111,12 @@ function isServerRunning() {
 
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim());
 
-    // 检查进程是否存在
+    // Check whether the process exists
     try {
-      process.kill(pid, 0); // 发送信号 0 检查进程是否存在
+      process.kill(pid, 0); // Send signal 0 to check if process exists
       return { running: true, pid };
     } catch (e) {
-      // PID 文件存在但进程不存在
+      // PID file exists but process does not
       fs.unlinkSync(pidFile);
       return { running: false };
     }
@@ -94,30 +125,37 @@ function isServerRunning() {
   }
 }
 
-// 启动服务
+// Start service
 async function startServer() {
   const { running, pid } = isServerRunning();
 
   if (running) {
-    console.log(chalk.yellow('✓ 服务已在运行中 (PID: ' + pid + ')'));
+    console.log(
+      chalk.yellow('✓ Service is already running (PID: ' + pid + ')'),
+    );
     return;
   }
 
-  const spinner = ora('启动 Claude Code 服务...').start();
+  const spinner = ora('Starting Claude Code service...').start();
 
   try {
-    // 确保日志目录存在
+    // Ensure log directory exists
     const logDir = path.dirname(logFile);
     if (!fs.existsSync(logDir)) {
       try {
         fs.mkdirSync(logDir, { recursive: true });
-        console.log(chalk.gray(`✅ 创建日志目录: ${logDir}`));
+        console.log(chalk.gray(`✅ Created log directory: ${logDir}`));
       } catch (err) {
-        console.error(chalk.red(`❌ 创建日志目录失败 ${logDir}:`, err.message));
+        console.error(
+          chalk.red(
+            `❌ Failed to create log directory ${logDir}:`,
+            err.message,
+          ),
+        );
       }
     }
 
-    // 使用 detached 模式启动后台进程
+    // Start background process in detached mode
     const out = fs.openSync(logFile, 'a');
     const err = fs.openSync(logFile, 'a');
 
@@ -127,81 +165,83 @@ async function startServer() {
       cwd: __dirname,
       env: {
         ...process.env,
-        NODE_ENV: 'production', // 设置为生产环境，禁用控制台日志
-        CLAUDE_BACKGROUND: 'true', // 额外的后台模式标记
+        NODE_ENV: 'production', // Set production mode to disable console logs
+        CLAUDE_BACKGROUND: 'true', // Additional background mode marker
       },
     });
 
-    // 分离子进程
+    // Detach child process
     child.unref();
 
-    // 等待一下让进程启动
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait briefly for process startup
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // 检查是否启动成功
+    // Check whether startup succeeded
     const { running: nowRunning } = isServerRunning();
     if (nowRunning) {
-      spinner.succeed(chalk.green('服务启动成功！'));
-      console.log(chalk.gray(`  端口: ${config.port}`));
-      console.log(chalk.gray(`  日志: ${logFile}`));
-      console.log(chalk.cyan(`\n测试: curl http://localhost:${config.port}/health`));
+      spinner.succeed(chalk.green('Service started successfully!'));
+      console.log(chalk.gray(`  Port: ${config.port}`));
+      console.log(chalk.gray(`  Log: ${logFile}`));
+      console.log(
+        chalk.cyan(`\nTest: curl http://localhost:${config.port}/health`),
+      );
     } else {
-      spinner.fail('服务启动失败，请查看日志: ' + logFile);
+      spinner.fail('Service failed to start, please check log: ' + logFile);
     }
   } catch (error) {
-    spinner.fail('启动失败: ' + error.message);
+    spinner.fail('Startup failed: ' + error.message);
   }
 }
 
-// 停止服务
+// Stop service
 async function stopServer() {
   const { running, pid } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.yellow('○ 服务未运行'));
+    console.log(chalk.yellow('○ Service is not running'));
     return;
   }
 
-  const spinner = ora(`停止服务 (PID: ${pid})...`).start();
+  const spinner = ora(`Stopping service (PID: ${pid})...`).start();
 
   try {
     process.kill(pid, 'SIGTERM');
 
-    // 等待进程结束
+    // Wait for process to exit
     let retries = 10;
     while (retries > 0 && isServerRunning().running) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       retries--;
     }
 
-    // 如果还没结束，强制杀死
+    // If still running, force kill
     if (isServerRunning().running) {
       process.kill(pid, 'SIGKILL');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
-    // 删除 PID 文件
+    // Remove PID file
     if (fs.existsSync(pidFile)) {
       fs.unlinkSync(pidFile);
     }
 
-    spinner.succeed(chalk.green('服务已停止'));
+    spinner.succeed(chalk.green('Service stopped'));
   } catch (error) {
-    spinner.fail('停止失败: ' + error.message);
+    spinner.fail('Stop failed: ' + error.message);
   }
 }
 
-// 查看状态
+// View status
 async function showStatus() {
   const { running, pid } = isServerRunning();
 
   console.log('');
   console.log(chalk.bold('┌─────────────────────────────────────┐'));
-  console.log(chalk.bold('│     Claude Code Server 状态         │'));
+  console.log(chalk.bold('│     Claude Code Server Status       │'));
   console.log(chalk.bold('├─────────────────────────────────────┤'));
 
   if (running) {
-    // 获取进程运行时间
+    // Get process uptime
     try {
       const stats = fs.statSync(logFile);
       const startTime = stats.mtime;
@@ -209,60 +249,72 @@ async function showStatus() {
       const hours = Math.floor(uptime / 3600);
       const minutes = Math.floor((uptime % 3600) / 60);
 
-      console.log(chalk.bold('│ ') + chalk.green('● ') + chalk.white('状态: 运行中'));
+      console.log(
+        chalk.bold('│ ') + chalk.green('● ') + chalk.white('Status: Running'),
+      );
       console.log(chalk.bold('│ ') + chalk.white(`   PID: ${pid}`));
-      console.log(chalk.bold('│ ') + chalk.white(`   端口: ${config.port}`));
-      console.log(chalk.bold('│ ') + chalk.white(`   运行时间: ${hours}h ${minutes}m`));
-      console.log(chalk.bold('│ ') + chalk.white(`   日志: ${logFile}`));
+      console.log(chalk.bold('│ ') + chalk.white(`   Port: ${config.port}`));
+      console.log(
+        chalk.bold('│ ') + chalk.white(`   Uptime: ${hours}h ${minutes}m`),
+      );
+      console.log(chalk.bold('│ ') + chalk.white(`   Log: ${logFile}`));
     } catch (e) {
-      console.log(chalk.bold('│ ') + chalk.green('● ') + chalk.white('状态: 运行中'));
+      console.log(
+        chalk.bold('│ ') + chalk.green('● ') + chalk.white('Status: Running'),
+      );
       console.log(chalk.bold('│ ') + chalk.white(`   PID: ${pid}`));
-      console.log(chalk.bold('│ ') + chalk.white(`   端口: ${config.port}`));
+      console.log(chalk.bold('│ ') + chalk.white(`   Port: ${config.port}`));
     }
   } else {
-    console.log(chalk.bold('│ ') + chalk.gray('○ ') + chalk.white('状态: 未运行'));
-    console.log(chalk.bold('│ ') + chalk.white(`   端口: ${config.port} (配置)`));
-    console.log(chalk.bold('│ ') + chalk.white(`   日志: ${logFile}`));
+    console.log(
+      chalk.bold('│ ') + chalk.gray('○ ') + chalk.white('Status: Not running'),
+    );
+    console.log(
+      chalk.bold('│ ') + chalk.white(`   Port: ${config.port} (config)`),
+    );
+    console.log(chalk.bold('│ ') + chalk.white(`   Log: ${logFile}`));
   }
 
   console.log(chalk.bold('└─────────────────────────────────────┘'));
   console.log('');
 }
 
-// 查看日志
+// View logs
 async function viewLogs() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.yellow('服务未运行，日志可能不是最新的'));
+    console.log(
+      chalk.yellow('Service is not running; logs may not be up to date'),
+    );
   }
 
-  // 日志查看菜单
+  // Log viewer menu
   while (true) {
-    // 清屏并显示日志
+    // Clear screen and display logs
     console.clear();
-    console.log(chalk.bold.cyan(`📋 日志查看器 - ${logFile}`));
+    console.log(chalk.bold.cyan(`📋 Log Viewer - ${logFile}`));
     console.log(chalk.gray('='.repeat(60)));
     console.log('');
 
     try {
-      // 读取最后 20 行日志（使用 stdio: 'pipe' 避免输出到终端）
+      // Read last 20 log lines (use stdio: 'pipe' to avoid direct terminal output)
       const { execSync } = require('child_process');
       const lastLines = execSync(`tail -n 20 ${logFile}`, {
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
       });
 
-      // 解析并格式化日志
-      const lines = lastLines.split('\n').filter(line => line.trim());
-      lines.forEach(line => {
+      // Parse and format logs
+      const lines = lastLines.split('\n').filter((line) => line.trim());
+      lines.forEach((line) => {
         try {
           const log = JSON.parse(line);
           const level = log.level || 'info';
           const timestamp = log.timestamp || '';
           const message = log.message || '';
 
-          // 根据级别设置颜色
+          // Set color based on level
           let colorFn = chalk.white;
           if (level === 'error') colorFn = chalk.red;
           else if (level === 'warn') colorFn = chalk.yellow;
@@ -270,33 +322,40 @@ async function viewLogs() {
 
           console.log(colorFn(`[${timestamp}] ${message}`));
 
-          // 如果有额外的元数据，显示关键信息
-          if (log.task_id) console.log(chalk.gray(`  Task: ${log.task_id.substring(0, 8)}...`));
-          if (log.session_id) console.log(chalk.gray(`  Session: ${log.session_id.substring(0, 8)}...`));
-          if (log.cost_usd !== undefined) console.log(chalk.gray(`  Cost: $${log.cost_usd.toFixed(4)}`));
+          // If extra metadata exists, show key details
+          if (log.task_id)
+            console.log(
+              chalk.gray(`  Task: ${log.task_id.substring(0, 8)}...`),
+            );
+          if (log.session_id)
+            console.log(
+              chalk.gray(`  Session: ${log.session_id.substring(0, 8)}...`),
+            );
+          if (log.cost_usd !== undefined)
+            console.log(chalk.gray(`  Cost: $${log.cost_usd.toFixed(4)}`));
         } catch (e) {
-          // 如果不是 JSON 格式，直接显示
+          // If not JSON format, display directly
           console.log(chalk.gray(line));
         }
       });
     } catch (error) {
-      console.log(chalk.yellow('无法读取日志或日志为空'));
+      console.log(chalk.yellow('Unable to read log or log is empty'));
     }
 
     console.log('');
     console.log(chalk.gray('='.repeat(60)));
 
-    // 提供操作选项
+    // Provide action options
     const { action } = await inquirer.prompt([
       {
         type: 'list',
         name: 'action',
-        message: '操作:',
+        message: 'Action:',
         choices: [
-          { name: '🔄 刷新日志', value: 'refresh' },
-          { name: '📄 查看更多 (最近 50 行)', value: 'more' },
-          { name: '🔍 搜索日志', value: 'search' },
-          { name: '◀ 返回主菜单', value: 'back' },
+          { name: '🔄 Refresh logs', value: 'refresh' },
+          { name: '📄 View more (last 50 lines)', value: 'more' },
+          { name: '🔍 Search logs', value: 'search' },
+          { name: '◀ Back to main menu', value: 'back' },
         ],
       },
     ]);
@@ -304,9 +363,9 @@ async function viewLogs() {
     if (action === 'back') {
       break;
     } else if (action === 'more') {
-      // 查看更多日志
+      // View more logs
       console.clear();
-      console.log(chalk.bold.cyan(`📋 最近 50 行日志 - ${logFile}`));
+      console.log(chalk.bold.cyan(`📋 Last 50 Log Lines - ${logFile}`));
       console.log(chalk.gray('='.repeat(60)));
       console.log('');
 
@@ -317,8 +376,8 @@ async function viewLogs() {
           stdio: ['ignore', 'pipe', 'ignore'],
         });
 
-        const lines = lastLines.split('\n').filter(line => line.trim());
-        lines.forEach(line => {
+        const lines = lastLines.split('\n').filter((line) => line.trim());
+        lines.forEach((line) => {
           try {
             const log = JSON.parse(line);
             const level = log.level || 'info';
@@ -336,7 +395,7 @@ async function viewLogs() {
           }
         });
       } catch (error) {
-        console.log(chalk.yellow('无法读取日志'));
+        console.log(chalk.yellow('Unable to read logs'));
       }
 
       console.log('');
@@ -344,49 +403,56 @@ async function viewLogs() {
         {
           type: 'input',
           name: 'continue',
-          message: '按 Enter 返回...',
+          message: 'Press Enter to return...',
         },
       ]);
     } else if (action === 'search') {
-      // 搜索日志
+      // Search logs
       const { keyword } = await inquirer.prompt([
         {
           type: 'input',
           name: 'keyword',
-          message: '输入搜索关键词:',
+          message: 'Enter search keyword:',
         },
       ]);
 
       if (keyword) {
         console.clear();
-        console.log(chalk.bold.cyan(`🔍 搜索结果: "${keyword}" - ${logFile}`));
+        console.log(
+          chalk.bold.cyan(`🔍 Search results: "${keyword}" - ${logFile}`),
+        );
         console.log(chalk.gray('='.repeat(60)));
         console.log('');
 
         try {
           const { execSync } = require('child_process');
-          const result = execSync(`grep -i "${keyword}" ${logFile} | tail -n 20`, {
-            encoding: 'utf-8',
-            stdio: ['ignore', 'pipe', 'ignore'],
-          });
+          const result = execSync(
+            `grep -i "${keyword}" ${logFile} | tail -n 20`,
+            {
+              encoding: 'utf-8',
+              stdio: ['ignore', 'pipe', 'ignore'],
+            },
+          );
 
           if (result.trim()) {
-            const lines = result.split('\n').filter(line => line.trim());
-            lines.forEach(line => {
+            const lines = result.split('\n').filter((line) => line.trim());
+            lines.forEach((line) => {
               try {
                 const log = JSON.parse(line);
                 const timestamp = log.timestamp || '';
                 const message = log.message || '';
-                console.log(chalk.gray(`[${timestamp}]`) + chalk.white(` ${message}`));
+                console.log(
+                  chalk.gray(`[${timestamp}]`) + chalk.white(` ${message}`),
+                );
               } catch (e) {
                 console.log(chalk.gray(line));
               }
             });
           } else {
-            console.log(chalk.yellow('未找到匹配的日志'));
+            console.log(chalk.yellow('No matching logs found'));
           }
         } catch (error) {
-          console.log(chalk.yellow('搜索失败或未找到结果'));
+          console.log(chalk.yellow('Search failed or no results found'));
         }
 
         console.log('');
@@ -394,76 +460,77 @@ async function viewLogs() {
           {
             type: 'input',
             name: 'continue',
-            message: '按 Enter 返回...',
+            message: 'Press Enter to return...',
           },
         ]);
       }
     }
-    // refresh: 继续循环，重新显示日志
+    // refresh: continue loop and redisplay logs
   }
 
-  // 返回前清屏
+  // Clear screen before returning
   console.clear();
 }
 
-// 配置管理
+// Configuration management
 async function configureSettings() {
-  // 第一部分：基本配置
+  // Part 1: Basic configuration
   const basicAnswers = await inquirer.prompt([
     {
       type: 'input',
       name: 'port',
-      message: '服务端口:',
+      message: 'Service port:',
       default: config.port,
     },
     {
       type: 'input',
       name: 'host',
-      message: '监听地址:',
+      message: 'Listen address:',
       default: config.host,
     },
     {
       type: 'input',
       name: 'claudePath',
-      message: 'Claude 路径:',
+      message: 'Claude path:',
       default: config.claudePath,
     },
     {
       type: 'input',
       name: 'nvmBin',
-      message: 'NVM bin 路径:',
+      message: 'NVM bin path:',
       default: config.nvmBin,
     },
     {
       type: 'input',
       name: 'defaultProjectPath',
-      message: '默认项目路径:',
+      message: 'Default project path:',
       default: config.defaultProjectPath,
     },
   ]);
 
-  // 更新基本配置
+  // Update basic configuration
   Object.assign(config, basicAnswers);
 
-  // 第二部分：root 兼容配置
+  // Part 2: Root compatibility configuration
   const { enableRootCompatibility } = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'enableRootCompatibility',
-      message: '启用 root 兼容模式? (绕过 Claude CLI 的 root 限制)',
+      message:
+        'Enable root compatibility mode? (bypass Claude CLI root restrictions)',
       default: config.enableRootCompatibility !== false,
     },
   ]);
 
-  // 更新 root 兼容配置
+  // Update root compatibility configuration
   config.enableRootCompatibility = enableRootCompatibility;
 
-  // 第三部分：Webhook 配置
+  // Part 3: Webhook configuration
   const { enableWebhook } = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'enableWebhook',
-      message: '启用 Webhook 回调?',
+      message: 'Enable Webhook callback?',
       default: config.webhook?.enabled || false,
     },
   ]);
@@ -476,32 +543,32 @@ async function configureSettings() {
         message: 'Webhook URL:',
         default: config.webhook?.defaultUrl || '',
         validate: (input) => {
-          if (!input) return true; // 允许为空
+          if (!input) return true; // Empty is allowed
           try {
             new URL(input);
             return true;
           } catch {
-            return '请输入有效的 URL';
+            return 'Please enter a valid URL';
           }
         },
       },
       {
         type: 'input',
         name: 'webhookTimeout',
-        message: 'Webhook 超时时间 (毫秒):',
+        message: 'Webhook timeout (ms):',
         default: (config.webhook?.timeout || 5000).toString(),
         filter: (input) => parseInt(input),
       },
       {
         type: 'input',
         name: 'webhookRetries',
-        message: 'Webhook 重试次数:',
+        message: 'Webhook retry count:',
         default: (config.webhook?.retries || 3).toString(),
         filter: (input) => parseInt(input),
       },
     ]);
 
-    // 更新 Webhook 配置
+    // Update Webhook configuration
     config.webhook = {
       enabled: true,
       defaultUrl: webhookAnswers.webhookUrl || null,
@@ -517,17 +584,17 @@ async function configureSettings() {
     };
   }
 
-  // 第三部分：任务队列配置
+  // Part 4: Task queue configuration
   const queueAnswers = await inquirer.prompt([
     {
       type: 'input',
       name: 'concurrency',
-      message: '任务队列并发数 (1-10):',
+      message: 'Task queue concurrency (1-10):',
       default: (config.taskQueue?.concurrency || 3).toString(),
       validate: (input) => {
         const num = parseInt(input);
         if (isNaN(num) || num < 1 || num > 10) {
-          return '请输入 1-10 之间的数字';
+          return 'Please enter a number between 1 and 10';
         }
         return true;
       },
@@ -536,7 +603,7 @@ async function configureSettings() {
     {
       type: 'input',
       name: 'timeout',
-      message: '任务超时时间 (毫秒):',
+      message: 'Task timeout (ms):',
       default: (config.taskQueue?.defaultTimeout || 300000).toString(),
       filter: (input) => parseInt(input),
     },
@@ -547,43 +614,69 @@ async function configureSettings() {
     defaultTimeout: queueAnswers.timeout,
   };
 
-  // 保存配置
+  // Save configuration
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
-  console.log(chalk.green('✓ 配置已保存'));
-  console.log(chalk.cyan('ℹ 配置将在 1 秒内自动生效（热重载）'));
+  console.log(chalk.green('✓ Configuration saved'));
+  console.log(
+    chalk.cyan('ℹ Configuration will auto-apply in 1 second (hot reload)'),
+  );
 
-  // 显示配置摘要
+  // Show configuration summary
   console.log('');
-  console.log(chalk.bold.cyan('配置摘要:'));
-  console.log(`  ${chalk.white('端口:')} ${config.port}`);
-  console.log(`  ${chalk.white('Root 兼容:')} ${config.enableRootCompatibility !== false ? chalk.green('已启用') : chalk.gray('未启用')}`);
-  console.log(`  ${chalk.white('Webhook:')} ${config.webhook.enabled ? chalk.green('已启用') : chalk.gray('未启用')}`);
+  console.log(chalk.bold.cyan('Configuration Summary:'));
+  console.log(`  ${chalk.white('Port:')} ${config.port}`);
+  console.log(
+    `  ${chalk.white('Root Compatibility:')} ${config.enableRootCompatibility !== false ? chalk.green('Enabled') : chalk.gray('Disabled')}`,
+  );
+  console.log(
+    `  ${chalk.white('Webhook:')} ${config.webhook.enabled ? chalk.green('Enabled') : chalk.gray('Disabled')}`,
+  );
   if (config.webhook.enabled && config.webhook.defaultUrl) {
     console.log(`  ${chalk.white('URL:')} ${config.webhook.defaultUrl}`);
   }
-  console.log(`  ${chalk.white('任务队列:')} 并发数 ${config.taskQueue?.concurrency || 3}, 超时 ${config.taskQueue?.defaultTimeout || 300000}ms`);
+  console.log(
+    `  ${chalk.white('Task Queue:')} concurrency ${config.taskQueue?.concurrency || 3}, timeout ${config.taskQueue?.defaultTimeout || 300000}ms`,
+  );
   console.log('');
 }
 
-// 显示 API 文档
+// Show API documentation
 async function showApiDocs() {
   console.log('');
-  console.log(chalk.bold.cyan('╔════════════════════════════════════════════════════════════════╗'));
-  console.log(chalk.bold.cyan('║           Claude Code Server - 接口文档                       ║'));
-  console.log(chalk.bold.cyan('╚════════════════════════════════════════════════════════════════╝'));
+  console.log(
+    chalk.bold.cyan(
+      '╔════════════════════════════════════════════════════════════════╗',
+    ),
+  );
+  console.log(
+    chalk.bold.cyan(
+      '║           Claude Code Server - API Documentation              ║',
+    ),
+  );
+  console.log(
+    chalk.bold.cyan(
+      '╚════════════════════════════════════════════════════════════════╝',
+    ),
+  );
   console.log('');
 
-  console.log(chalk.bold.yellow('基础 URL: ') + chalk.white(`http://localhost:${config.port}`));
+  console.log(
+    chalk.bold.yellow('Base URL: ') +
+      chalk.white(`http://localhost:${config.port}`),
+  );
   console.log('');
 
-  // 1. 健康检查
-  console.log(chalk.bold.green('1. 健康检查'));
+  // 1. Health check
+  console.log(chalk.bold.green('1. Health Check'));
   console.log(chalk.gray('─'.repeat(60)));
   console.log(chalk.cyan('GET /health'));
   console.log('');
-  console.log(chalk.white('描述: ') + '检查服务是否正常运行');
-  console.log(chalk.white('响应:'));
+  console.log(
+    chalk.white('Description: ') +
+      'Check whether the service is running normally',
+  );
+  console.log(chalk.white('Response:'));
   console.log('  {');
   console.log('    "status": "ok",');
   console.log('    "uptime": 123.45');
@@ -591,42 +684,49 @@ async function showApiDocs() {
   console.log('');
 
   // 2. Claude API
-  console.log(chalk.bold.green('2. Claude AI 对话'));
+  console.log(chalk.bold.green('2. Claude AI Chat'));
   console.log(chalk.gray('─'.repeat(60)));
   console.log(chalk.cyan('POST /api/claude'));
   console.log('');
-  console.log(chalk.white('描述: ') + '发送提示给 Claude AI 并获取回复');
+  console.log(
+    chalk.white('Description: ') +
+      'Send a prompt to Claude AI and get a response',
+  );
   console.log('');
-  console.log(chalk.white('请求体:'));
+  console.log(chalk.white('Request Body:'));
   console.log('  {');
-  console.log(`    "prompt": "你的问题或任务",${chalk.gray('    // 必填')}`);
-  console.log(`    "project_path": "/path/to/project"${chalk.gray(' // 可填，默认: ' + config.defaultProjectPath + ')')}`);
+  console.log(
+    `    "prompt": "your question or task",${chalk.gray('    // required')}`,
+  );
+  console.log(
+    `    "project_path": "/path/to/project"${chalk.gray(' // optional, default: ' + config.defaultProjectPath + ')')}`,
+  );
   console.log('  }');
   console.log('');
-  console.log(chalk.white('响应 (成功):'));
+  console.log(chalk.white('Response (Success):'));
   console.log('  {');
   console.log('    "success": true,');
-  console.log('    "result": "Claude 的回复内容",');
+  console.log('    "result": "Claude response text",');
   console.log('    "duration_ms": 1953,');
   console.log('    "cost_usd": 0.097502,');
   console.log('    "session_id": "xxx-xxx-xxx"');
   console.log('  }');
   console.log('');
-  console.log(chalk.white('响应 (失败):'));
+  console.log(chalk.white('Response (Failure):'));
   console.log('  {');
   console.log('    "success": false,');
-  console.log('    "error": "错误信息",');
+  console.log('    "error": "Error message",');
   console.log('    "duration_ms": 100');
   console.log('  }');
   console.log('');
 
-  // 3. 配置信息
-  console.log(chalk.bold.green('3. 配置信息'));
+  // 3. Configuration info
+  console.log(chalk.bold.green('3. Configuration Info'));
   console.log(chalk.gray('─'.repeat(60)));
   console.log(chalk.cyan('GET /api/config'));
   console.log('');
-  console.log(chalk.white('描述: ') + '获取服务配置信息');
-  console.log(chalk.white('响应:'));
+  console.log(chalk.white('Description: ') + 'Get service configuration info');
+  console.log(chalk.white('Response:'));
   console.log('  {');
   console.log('    "port": 5546,');
   console.log('    "defaultProjectPath": "/home/junhang/workspace",');
@@ -634,25 +734,31 @@ async function showApiDocs() {
   console.log('  }');
   console.log('');
 
-  // 4. 使用示例
-  console.log(chalk.bold.green('4. 使用示例'));
+  // 4. Usage examples
+  console.log(chalk.bold.green('4. Usage Examples'));
   console.log(chalk.gray('─'.repeat(60)));
-  console.log(chalk.cyan('curl 示例:'));
+  console.log(chalk.cyan('curl example:'));
   console.log('');
-  console.log(chalk.gray('# 健康检查'));
+  console.log(chalk.gray('# health check'));
   console.log(chalk.white(`curl http://localhost:${config.port}/health`));
   console.log('');
-  console.log(chalk.gray('# 调用 Claude'));
-  console.log(chalk.white(`curl -X POST http://localhost:${config.port}/api/claude \\`));
+  console.log(chalk.gray('# call Claude'));
+  console.log(
+    chalk.white(`curl -X POST http://localhost:${config.port}/api/claude \\`),
+  );
   console.log(chalk.white('  -H "Content-Type: application/json" \\'));
-  console.log(chalk.white('  -d \'{"prompt": "解释一下什么是 HTTP"}\''));
+  console.log(chalk.white('  -d \'{"prompt": "Explain what HTTP is"}\''));
   console.log('');
-  console.log(chalk.cyan('Node.js 示例:'));
+  console.log(chalk.cyan('Node.js example:'));
   console.log('');
-  console.log('const response = await fetch(`http://localhost:' + config.port + '/api/claude`, {');
+  console.log(
+    'const response = await fetch(`http://localhost:' +
+      config.port +
+      '/api/claude`, {',
+  );
   console.log('  method: "POST",');
   console.log('  headers: { "Content-Type": "application/json" },');
-  console.log('  body: JSON.stringify({ prompt: "你的问题" })');
+  console.log('  body: JSON.stringify({ prompt: "your question" })');
   console.log('});');
   console.log('const data = await response.json();');
   console.log('console.log(data.result);');
@@ -662,110 +768,128 @@ async function showApiDocs() {
   console.log('');
 }
 
-// 测试 API
+// Test API
 async function testApi() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first'));
     return;
   }
 
-  const spinner = ora('测试 API...').start();
+  const spinner = ora('Testing API...').start();
 
   try {
     const response = await fetch(`http://localhost:${config.port}/health`);
     const data = await response.json();
 
-    spinner.succeed(chalk.green('健康检查通过'));
+    spinner.succeed(chalk.green('Health check passed'));
     console.log(JSON.stringify(data, null, 2));
 
-    // 测试 Claude Code API
-    const spinner2 = ora('测试 Claude Code API...').start();
-    const claudeResponse = await fetch(`http://localhost:${config.port}/api/claude`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: 'Say hello' }),
-    });
+    // Test Claude Code API
+    const spinner2 = ora('Testing Claude Code API...').start();
+    const claudeResponse = await fetch(
+      `http://localhost:${config.port}/api/claude`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: 'Say hello' }),
+      },
+    );
     const claudeData = await claudeResponse.json();
 
     if (claudeData.success) {
-      spinner2.succeed(chalk.green('Claude Code API 测试成功'));
-      console.log(chalk.gray('回复: ') + claudeData.result);
-      console.log(chalk.gray(`耗时: ${claudeData.duration_ms}ms, 费用: $${claudeData.cost_usd}`));
+      spinner2.succeed(chalk.green('Claude Code API test succeeded'));
+      console.log(chalk.gray('Reply: ') + claudeData.result);
+      console.log(
+        chalk.gray(
+          `Duration: ${claudeData.duration_ms}ms, Cost: $${claudeData.cost_usd}`,
+        ),
+      );
     } else {
-      spinner2.warn(chalk.yellow('Claude Code API 返回错误'));
+      spinner2.warn(chalk.yellow('Claude Code API returned an error'));
       console.log(JSON.stringify(claudeData, null, 2));
     }
   } catch (error) {
-    spinner.fail('测试失败: ' + error.message);
+    spinner.fail('Test failed: ' + error.message);
   }
 }
 
-// ========== 会话管理 ==========
+// ========== Session Management ==========
 
-// 列出所有会话
+// List all sessions
 async function listSessions() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first.'));
     return;
   }
 
-  const spinner = ora('获取会话列表...').start();
+  const spinner = ora('Fetching session list...').start();
 
   try {
-    const response = await fetch(`http://localhost:${config.port}/api/sessions`);
+    const response = await fetch(
+      `http://localhost:${config.port}/api/sessions`,
+    );
     const data = await response.json();
 
     spinner.stop();
 
     if (data.success && data.sessions.length > 0) {
       console.log('');
-      console.log(chalk.bold.cyan(`找到 ${data.sessions.length} 个会话：`));
+      console.log(chalk.bold.cyan(`Found ${data.sessions.length} sessions:`));
       console.log('');
 
       data.sessions.forEach((session, index) => {
-        const statusColor = session.status === 'active' ? chalk.green : chalk.gray;
-        console.log(`${chalk.bold((index + 1) + '.')} ${chalk.white(session.id.substring(0, 8))}... - ${statusColor('● ' + session.status)}`);
-        console.log(`   ${chalk.gray('项目:')} ${session.project_path}`);
-        console.log(`   ${chalk.gray('模型:')} ${session.model}`);
-        console.log(`   ${chalk.gray('消息数:')} ${session.messages_count} | ${chalk.gray('花费:')} $${session.total_cost_usd.toFixed(4)}`);
-        console.log(`   ${chalk.gray('创建:')} ${new Date(session.created_at).toLocaleString()}`);
+        const statusColor =
+          session.status === 'active' ? chalk.green : chalk.gray;
+        console.log(
+          `${chalk.bold(index + 1 + '.')} ${chalk.white(session.id.substring(0, 8))}... - ${statusColor('● ' + session.status)}`,
+        );
+        console.log(`   ${chalk.gray('Project:')} ${session.project_path}`);
+        console.log(`   ${chalk.gray('Model:')} ${session.model}`);
+        console.log(
+          `   ${chalk.gray('Messages:')} ${session.messages_count} | ${chalk.gray('Cost:')} $${session.total_cost_usd.toFixed(4)}`,
+        );
+        console.log(
+          `   ${chalk.gray('Created:')} ${new Date(session.created_at).toLocaleString()}`,
+        );
         console.log('');
       });
     } else {
-      spinner.warn('没有找到任何会话');
+      spinner.warn('No sessions found');
     }
   } catch (error) {
-    spinner.fail('获取会话列表失败: ' + error.message);
+    spinner.fail('Failed to fetch session list: ' + error.message);
   }
 }
 
-// 查看会话详情
+// View session details
 async function viewSessionDetails() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first.'));
     return;
   }
 
-  const spinner = ora('获取会话列表...').start();
+  const spinner = ora('Fetching session list...').start();
 
   try {
-    const response = await fetch(`http://localhost:${config.port}/api/sessions`);
+    const response = await fetch(
+      `http://localhost:${config.port}/api/sessions`,
+    );
     const data = await response.json();
 
     spinner.stop();
 
     if (!data.success || data.sessions.length === 0) {
-      console.log(chalk.yellow('没有找到任何会话'));
+      console.log(chalk.yellow('No sessions found'));
       return;
     }
 
-    const choices = data.sessions.map(s => ({
+    const choices = data.sessions.map((s) => ({
       name: `${s.id.substring(0, 8)}... - ${s.project_path} (${s.status})`,
       value: s.id,
     }));
@@ -774,13 +898,15 @@ async function viewSessionDetails() {
       {
         type: 'list',
         name: 'sessionId',
-        message: '选择要查看的会话:',
+        message: 'Select a session to view:',
         choices,
       },
     ]);
 
-    const spinner2 = ora('获取会话详情...').start();
-    const detailResponse = await fetch(`http://localhost:${config.port}/api/sessions/${sessionId}`);
+    const spinner2 = ora('Fetching session details...').start();
+    const detailResponse = await fetch(
+      `http://localhost:${config.port}/api/sessions/${sessionId}`,
+    );
     const detailData = await detailResponse.json();
 
     spinner2.stop();
@@ -788,51 +914,61 @@ async function viewSessionDetails() {
     if (detailData.success) {
       const session = detailData.session;
       console.log('');
-      console.log(chalk.bold.cyan('会话详情：'));
+      console.log(chalk.bold.cyan('Session details:'));
       console.log('');
       console.log(`${chalk.white('ID:')}            ${session.id}`);
-      console.log(`${chalk.white('状态:')}          ${session.status}`);
-      console.log(`${chalk.white('项目路径:')}      ${session.project_path}`);
-      console.log(`${chalk.white('模型:')}          ${session.model}`);
-      console.log(`${chalk.white('消息数:')}        ${session.messages_count}`);
-      console.log(`${chalk.white('总花费:')}        $${session.total_cost_usd.toFixed(4)}`);
-      console.log(`${chalk.white('创建时间:')}      ${new Date(session.created_at).toLocaleString()}`);
-      console.log(`${chalk.white('更新时间:')}      ${new Date(session.updated_at).toLocaleString()}`);
+      console.log(`${chalk.white('Status:')}        ${session.status}`);
+      console.log(`${chalk.white('Project Path:')}  ${session.project_path}`);
+      console.log(`${chalk.white('Model:')}         ${session.model}`);
+      console.log(`${chalk.white('Messages:')}      ${session.messages_count}`);
+      console.log(
+        `${chalk.white('Total Cost:')}    $${session.total_cost_usd.toFixed(4)}`,
+      );
+      console.log(
+        `${chalk.white('Created At:')}    ${new Date(session.created_at).toLocaleString()}`,
+      );
+      console.log(
+        `${chalk.white('Updated At:')}    ${new Date(session.updated_at).toLocaleString()}`,
+      );
       if (session.metadata && Object.keys(session.metadata).length > 0) {
-        console.log(`${chalk.white('元数据:')}        ${JSON.stringify(session.metadata)}`);
+        console.log(
+          `${chalk.white('Metadata:')}      ${JSON.stringify(session.metadata)}`,
+        );
       }
       console.log('');
     } else {
-      console.log(chalk.red('获取会话详情失败'));
+      console.log(chalk.red('Failed to fetch session details'));
     }
   } catch (error) {
-    spinner.fail('操作失败: ' + error.message);
+    spinner.fail('Operation failed: ' + error.message);
   }
 }
 
-// 删除会话
+// Delete session
 async function deleteSession() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first.'));
     return;
   }
 
-  const spinner = ora('获取会话列表...').start();
+  const spinner = ora('Fetching session list...').start();
 
   try {
-    const response = await fetch(`http://localhost:${config.port}/api/sessions`);
+    const response = await fetch(
+      `http://localhost:${config.port}/api/sessions`,
+    );
     const data = await response.json();
 
     spinner.stop();
 
     if (!data.success || data.sessions.length === 0) {
-      console.log(chalk.yellow('没有找到任何会话'));
+      console.log(chalk.yellow('No sessions found'));
       return;
     }
 
-    const choices = data.sessions.map(s => ({
+    const choices = data.sessions.map((s) => ({
       name: `${s.id.substring(0, 8)}... - ${s.project_path} (${s.status})`,
       value: s.id,
     }));
@@ -841,7 +977,7 @@ async function deleteSession() {
       {
         type: 'list',
         name: 'sessionId',
-        message: '选择要删除的会话:',
+        message: 'Select a session to delete:',
         choices,
       },
     ]);
@@ -850,47 +986,50 @@ async function deleteSession() {
       {
         type: 'confirm',
         name: 'confirm',
-        message: '确认删除此会话？',
+        message: 'Confirm deleting this session?',
         default: false,
       },
     ]);
 
     if (!confirm) {
-      console.log(chalk.gray('已取消'));
+      console.log(chalk.gray('Canceled'));
       return;
     }
 
-    const spinner2 = ora('删除会话...').start();
-    const deleteResponse = await fetch(`http://localhost:${config.port}/api/sessions/${sessionId}`, {
-      method: 'DELETE',
-    });
+    const spinner2 = ora('Deleting session...').start();
+    const deleteResponse = await fetch(
+      `http://localhost:${config.port}/api/sessions/${sessionId}`,
+      {
+        method: 'DELETE',
+      },
+    );
     const deleteData = await deleteResponse.json();
 
     spinner2.stop();
 
     if (deleteData.success) {
-      console.log(chalk.green('✓ 会话已删除'));
+      console.log(chalk.green('✓ Session deleted'));
     } else {
-      console.log(chalk.red('删除失败: ' + deleteData.error));
+      console.log(chalk.red('Delete failed: ' + deleteData.error));
     }
   } catch (error) {
-    spinner.fail('操作失败: ' + error.message);
+    spinner.fail('Operation failed: ' + error.message);
   }
 }
 
-// 会话管理菜单
+// Session management menu
 async function sessionManagementMenu() {
   const { action } = await inquirer.prompt([
     {
       type: 'list',
       name: 'action',
-      message: '会话管理',
+      message: 'Session Management',
       pageSize: 10,
       choices: [
-        { name: '📜 列出所有会话', value: 'list' },
-        { name: '🔍 查看会话详情', value: 'view' },
-        { name: '🗑 删除会话', value: 'delete' },
-        { name: '◀ 返回主菜单', value: 'back' },
+        { name: '📜 List all sessions', value: 'list' },
+        { name: '🔍 View session details', value: 'view' },
+        { name: '🗑 Delete session', value: 'delete' },
+        { name: '◀ Back to main menu', value: 'back' },
       ],
     },
   ]);
@@ -913,21 +1052,23 @@ async function sessionManagementMenu() {
   await sessionManagementMenu();
 }
 
-// ========== 统计查看 ==========
+// ========== Statistics View ==========
 
-// 查看统计摘要
+// View statistics summary
 async function viewStatisticsSummary() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first'));
     return;
   }
 
-  const spinner = ora('获取统计数据...').start();
+  const spinner = ora('Fetching statistics...').start();
 
   try {
-    const response = await fetch(`http://localhost:${config.port}/api/statistics/summary`);
+    const response = await fetch(
+      `http://localhost:${config.port}/api/statistics/summary`,
+    );
     const data = await response.json();
 
     spinner.stop();
@@ -935,71 +1076,87 @@ async function viewStatisticsSummary() {
     if (data.success) {
       const stats = data.statistics;
       console.log('');
-      console.log(chalk.bold.cyan('使用统计摘要：'));
+      console.log(chalk.bold.cyan('Usage statistics summary:'));
       console.log('');
-      console.log(`${chalk.white('请求总数:')}      ${stats.requests.total}`);
-      console.log(`${chalk.green('成功请求:')}      ${stats.requests.successful}`);
-      console.log(`${chalk.red('失败请求:')}      ${stats.requests.failed}`);
-      console.log(`${chalk.white('Token 使用:')}`);
-      console.log(`  ${chalk.gray('- 输入:')}      ${stats.tokens.total_input.toLocaleString()}`);
-      console.log(`  ${chalk.gray('- 输出:')}      ${stats.tokens.total_output.toLocaleString()}`);
-      console.log(`${chalk.white('总花费:')}        $${stats.costs.total_usd.toFixed(4)}`);
+      console.log(`${chalk.white('Total Requests:')} ${stats.requests.total}`);
+      console.log(
+        `${chalk.green('Successful:')}     ${stats.requests.successful}`,
+      );
+      console.log(`${chalk.red('Failed:')}         ${stats.requests.failed}`);
+      console.log(`${chalk.white('Token Usage:')}`);
+      console.log(
+        `  ${chalk.gray('- Input:')}      ${stats.tokens.total_input.toLocaleString()}`,
+      );
+      console.log(
+        `  ${chalk.gray('- Output:')}     ${stats.tokens.total_output.toLocaleString()}`,
+      );
+      console.log(
+        `${chalk.white('Total Cost:')}    $${stats.costs.total_usd.toFixed(4)}`,
+      );
       console.log('');
     } else {
-      console.log(chalk.red('获取统计数据失败'));
+      console.log(chalk.red('Failed to fetch statistics'));
     }
   } catch (error) {
-    spinner.fail('获取统计数据失败: ' + error.message);
+    spinner.fail('Failed to fetch statistics: ' + error.message);
   }
 }
 
-// 查看每日统计
+// View daily statistics
 async function viewDailyStatistics() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first'));
     return;
   }
 
-  const spinner = ora('获取每日统计...').start();
+  const spinner = ora('Fetching daily statistics...').start();
 
   try {
-    const response = await fetch(`http://localhost:${config.port}/api/statistics/daily?limit=7`);
+    const response = await fetch(
+      `http://localhost:${config.port}/api/statistics/daily?limit=7`,
+    );
     const data = await response.json();
 
     spinner.stop();
 
     if (data.success && data.daily.length > 0) {
       console.log('');
-      console.log(chalk.bold.cyan(`最近 ${data.daily.length} 天统计：`));
+      console.log(
+        chalk.bold.cyan(`Daily stats for the last ${data.daily.length} days:`),
+      );
       console.log('');
 
       data.daily.forEach((day, index) => {
-        console.log(`${chalk.bold((index + 1) + '.')} ${chalk.white(day.date)}`);
-        console.log(`   ${chalk.gray('请求数:')} ${day.total_requests} | ${chalk.gray('成功:')} ${day.successful_requests} | ${chalk.gray('失败:')} ${day.failed_requests}`);
-        console.log(`   ${chalk.gray('花费:')} $${day.total_cost_usd.toFixed(4)} | ${chalk.gray('输入 Token:')} ${day.total_input_tokens.toLocaleString()} | ${chalk.gray('输出 Token:')} ${day.total_output_tokens.toLocaleString()}`);
+        console.log(`${chalk.bold(index + 1 + '.')} ${chalk.white(day.date)}`);
+        console.log(
+          `   ${chalk.gray('Requests:')} ${day.total_requests} | ${chalk.gray('Success:')} ${day.successful_requests} | ${chalk.gray('Failed:')} ${day.failed_requests}`,
+        );
+        console.log(
+          `   ${chalk.gray('Cost:')} $${day.total_cost_usd.toFixed(4)} | ${chalk.gray('Input Tokens:')} ${day.total_input_tokens.toLocaleString()} | ${chalk.gray('Output Tokens:')} ${day.total_output_tokens.toLocaleString()}`,
+        );
         console.log('');
       });
     } else {
-      spinner.warn('没有找到统计数据');
+      spinner.warn('No statistics found');
     }
   } catch (error) {
-    spinner.fail('获取统计数据失败: ' + error.message);
+    spinner.fail('Failed to fetch statistics: ' + error.message);
   }
 }
 
-// 统计查看菜单
+// Statistics view menu
 async function statisticsMenu() {
   const { action } = await inquirer.prompt([
     {
       type: 'list',
       name: 'action',
-      message: '统计查看',
+      message: 'Statistics',
       choices: [
-        { name: '📊 查看统计摘要', value: 'summary' },
-        { name: '📅 查看每日统计', value: 'daily' },
-        { name: '◀ 返回主菜单', value: 'back' },
+        { name: '📊 View summary', value: 'summary' },
+        { name: '📅 View daily stats', value: 'daily' },
+        { name: '◀ Back to main menu', value: 'back' },
       ],
     },
   ]);
@@ -1019,18 +1176,18 @@ async function statisticsMenu() {
   await statisticsMenu();
 }
 
-// ========== 任务列表 ==========
+// ========== Task List ==========
 
-// 列出所有任务
+// List all tasks
 async function listTasks() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first'));
     return;
   }
 
-  const spinner = ora('获取任务列表...').start();
+  const spinner = ora('Fetching task list...').start();
 
   try {
     const response = await fetch(`http://localhost:${config.port}/api/tasks`);
@@ -1040,7 +1197,7 @@ async function listTasks() {
 
     if (data.success && data.tasks.length > 0) {
       console.log('');
-      console.log(chalk.bold.cyan(`找到 ${data.tasks.length} 个任务：`));
+      console.log(chalk.bold.cyan(`Found ${data.tasks.length} tasks:`));
       console.log('');
 
       data.tasks.forEach((task, index) => {
@@ -1053,38 +1210,50 @@ async function listTasks() {
         };
         const statusColor = statusColors[task.status] || chalk.gray;
 
-        console.log(`${chalk.bold((index + 1) + '.')} ${chalk.white(task.id.substring(0, 8))}... - ${statusColor('● ' + task.status)} ${chalk.gray('(优先级: ' + task.priority + ')')}`);
-        console.log(`   ${chalk.gray('提示:')} ${task.prompt.substring(0, 60)}${task.prompt.length > 60 ? '...' : ''}`);
+        console.log(
+          `${chalk.bold(index + 1 + '.')} ${chalk.white(task.id.substring(0, 8))}... - ${statusColor('● ' + task.status)} ${chalk.gray('(Priority: ' + task.priority + ')')}`,
+        );
+        console.log(
+          `   ${chalk.gray('Prompt:')} ${task.prompt.substring(0, 60)}${task.prompt.length > 60 ? '...' : ''}`,
+        );
         if (task.status === 'completed') {
-          console.log(`   ${chalk.green('结果:')} ${task.result?.substring(0, 60)}${task.result?.length > 60 ? '...' : ''}`);
-          console.log(`   ${chalk.gray('耗时:')} ${task.duration_ms}ms | ${chalk.gray('花费:')} $${task.cost_usd.toFixed(4)}`);
+          console.log(
+            `   ${chalk.green('Result:')} ${task.result?.substring(0, 60)}${task.result?.length > 60 ? '...' : ''}`,
+          );
+          console.log(
+            `   ${chalk.gray('Duration:')} ${task.duration_ms}ms | ${chalk.gray('Cost:')} $${task.cost_usd.toFixed(4)}`,
+          );
         } else if (task.status === 'failed') {
-          console.log(`   ${chalk.red('错误:')} ${task.error}`);
+          console.log(`   ${chalk.red('Error:')} ${task.error}`);
         }
-        console.log(`   ${chalk.gray('创建:')} ${new Date(task.created_at).toLocaleString()}`);
+        console.log(
+          `   ${chalk.gray('Created:')} ${new Date(task.created_at).toLocaleString()}`,
+        );
         console.log('');
       });
     } else {
-      spinner.warn('没有找到任何任务');
+      spinner.warn('No tasks found');
     }
   } catch (error) {
-    spinner.fail('获取任务列表失败: ' + error.message);
+    spinner.fail('Failed to fetch task list: ' + error.message);
   }
 }
 
-// 查看队列状态
+// View queue status
 async function viewQueueStatus() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first'));
     return;
   }
 
-  const spinner = ora('获取队列状态...').start();
+  const spinner = ora('Fetching queue status...').start();
 
   try {
-    const response = await fetch(`http://localhost:${config.port}/api/tasks/queue/status`);
+    const response = await fetch(
+      `http://localhost:${config.port}/api/tasks/queue/status`,
+    );
     const data = await response.json();
 
     spinner.stop();
@@ -1092,54 +1261,60 @@ async function viewQueueStatus() {
     if (data.success) {
       const queue = data.queue;
       console.log('');
-      console.log(chalk.bold.cyan('任务队列状态：'));
+      console.log(chalk.bold.cyan('Task queue status:'));
       console.log('');
-      console.log(`${chalk.white('运行状态:')}      ${queue.running ? chalk.green('运行中') : chalk.gray('已停止')}`);
-      console.log(`${chalk.white('并发数:')}        ${queue.concurrency}`);
-      console.log(`${chalk.white('活跃任务:')}      ${queue.active_tasks}`);
-      console.log(`${chalk.white('任务统计:')}`);
-      console.log(`  ${chalk.gray('- 总计:')}     ${queue.total}`);
-      console.log(`  ${chalk.yellow('- 待处理:')}   ${queue.pending}`);
-      console.log(`  ${chalk.blue('- 处理中:')}   ${queue.processing}`);
-      console.log(`  ${chalk.green('- 已完成:')}   ${queue.completed}`);
-      console.log(`  ${chalk.red('- 失败:')}     ${queue.failed}`);
-      console.log(`  ${chalk.gray('- 已取消:')}   ${queue.cancelled}`);
-      console.log(`  ${chalk.gray('- 总花费:')}   $${queue.total_cost_usd.toFixed(4)}`);
+      console.log(
+        `${chalk.white('Running:')}       ${queue.running ? chalk.green('Yes') : chalk.gray('No')}`,
+      );
+      console.log(`${chalk.white('Concurrency:')}   ${queue.concurrency}`);
+      console.log(`${chalk.white('Active Tasks:')}  ${queue.active_tasks}`);
+      console.log(`${chalk.white('Task Stats:')}`);
+      console.log(`  ${chalk.gray('- Total:')}     ${queue.total}`);
+      console.log(`  ${chalk.yellow('- Pending:')}   ${queue.pending}`);
+      console.log(`  ${chalk.blue('- Processing:')} ${queue.processing}`);
+      console.log(`  ${chalk.green('- Completed:')}  ${queue.completed}`);
+      console.log(`  ${chalk.red('- Failed:')}      ${queue.failed}`);
+      console.log(`  ${chalk.gray('- Cancelled:')}  ${queue.cancelled}`);
+      console.log(
+        `  ${chalk.gray('- Total Cost:')} $${queue.total_cost_usd.toFixed(4)}`,
+      );
       console.log('');
     } else {
-      console.log(chalk.red('获取队列状态失败'));
+      console.log(chalk.red('Failed to fetch queue status'));
     }
   } catch (error) {
-    spinner.fail('获取队列状态失败: ' + error.message);
+    spinner.fail('Failed to fetch queue status: ' + error.message);
   }
 }
 
-// 调整任务优先级
+// Adjust task priority
 async function changeTaskPriority() {
   const { running } = isServerRunning();
 
   if (!running) {
-    console.log(chalk.red('✗ 服务未运行，请先启动服务'));
+    console.log(chalk.red('✗ Service is not running. Please start it first'));
     return;
   }
 
-  const spinner = ora('获取待处理任务...').start();
+  const spinner = ora('Fetching pending tasks...').start();
 
   try {
-    // 获取 pending 和 processing 状态的任务
-    const response = await fetch(`http://localhost:${config.port}/api/tasks?status=pending`);
+    // Get tasks in pending and processing states
+    const response = await fetch(
+      `http://localhost:${config.port}/api/tasks?status=pending`,
+    );
     const data = await response.json();
 
     spinner.stop();
 
     if (!data.success || data.tasks.length === 0) {
-      console.log(chalk.yellow('没有找到可以调整优先级的任务'));
+      console.log(chalk.yellow('No tasks available for priority adjustment'));
       return;
     }
 
-    // 让用户选择任务
-    const choices = data.tasks.map(task => ({
-      name: `${task.id.substring(0, 8)}... - 优先级: ${task.priority} - ${task.prompt.substring(0, 50)}...`,
+    // Let user choose a task
+    const choices = data.tasks.map((task) => ({
+      name: `${task.id.substring(0, 8)}... - Priority: ${task.priority} - ${task.prompt.substring(0, 50)}...`,
       value: task.id,
       short: task.id.substring(0, 8),
     }));
@@ -1148,24 +1323,24 @@ async function changeTaskPriority() {
       {
         type: 'list',
         name: 'taskId',
-        message: '选择要调整优先级的任务:',
+        message: 'Select a task to adjust priority:',
         choices: choices,
       },
     ]);
 
-    const task = data.tasks.find(t => t.id === taskId);
+    const task = data.tasks.find((t) => t.id === taskId);
 
-    // 让用户输入新的优先级
+    // Let user input a new priority
     const { priority } = await inquirer.prompt([
       {
         type: 'input',
         name: 'priority',
-        message: `输入新的优先级 (1-10, 当前: ${task.priority}):`,
+        message: `Enter new priority (1-10, current: ${task.priority}):`,
         default: task.priority.toString(),
         validate: (input) => {
           const num = parseInt(input);
           if (isNaN(num) || num < 1 || num > 10) {
-            return '请输入 1-10 之间的数字';
+            return 'Please enter a number between 1 and 10';
           }
           return true;
         },
@@ -1173,45 +1348,48 @@ async function changeTaskPriority() {
       },
     ]);
 
-    // 更新优先级
-    const updateSpinner = ora('更新优先级...').start();
-    const updateResponse = await fetch(`http://localhost:${config.port}/api/tasks/${taskId}/priority`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priority }),
-    });
+    // Update priority
+    const updateSpinner = ora('Updating priority...').start();
+    const updateResponse = await fetch(
+      `http://localhost:${config.port}/api/tasks/${taskId}/priority`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority }),
+      },
+    );
 
     const updateData = await updateResponse.json();
     updateSpinner.stop();
 
     if (updateData.success) {
       console.log('');
-      console.log(chalk.green('✓ 优先级已更新'));
-      console.log(`  任务 ID: ${updateData.task_id.substring(0, 8)}...`);
-      console.log(`  旧优先级: ${updateData.old_priority}`);
-      console.log(`  新优先级: ${updateData.new_priority}`);
+      console.log(chalk.green('✓ Priority updated'));
+      console.log(`  Task ID: ${updateData.task_id.substring(0, 8)}...`);
+      console.log(`  Old Priority: ${updateData.old_priority}`);
+      console.log(`  New Priority: ${updateData.new_priority}`);
       console.log('');
     } else {
-      console.log(chalk.red('✗ 更新失败: ' + updateData.error));
+      console.log(chalk.red('✗ Update failed: ' + updateData.error));
     }
   } catch (error) {
-    spinner.fail('操作失败: ' + error.message);
+    spinner.fail('Operation failed: ' + error.message);
   }
 }
 
-// 任务列表菜单
+// Task list menu
 async function tasksMenu() {
   const { action } = await inquirer.prompt([
     {
       type: 'list',
       name: 'action',
-      message: '任务列表',
+      message: 'Task List',
       pageSize: 10,
       choices: [
-        { name: '📜 列出所有任务', value: 'list' },
-        { name: '📊 查看队列状态', value: 'status' },
-        { name: '⚡ 调整任务优先级', value: 'priority' },
-        { name: '◀ 返回主菜单', value: 'back' },
+        { name: '📜 List all tasks', value: 'list' },
+        { name: '📊 View queue status', value: 'status' },
+        { name: '⚡ Adjust task priority', value: 'priority' },
+        { name: '◀ Back to main menu', value: 'back' },
       ],
     },
   ]);
@@ -1234,29 +1412,59 @@ async function tasksMenu() {
   await tasksMenu();
 }
 
-// 主菜单
+// Main menu
 async function mainMenu() {
   const { running, pid } = isServerRunning();
 
-  const statusText = running ? chalk.green('[运行中]') : chalk.gray('[未运行]');
+  const statusText = running
+    ? chalk.green('[Running]')
+    : chalk.gray('[Stopped]');
   const { action } = await inquirer.prompt([
     {
       type: 'list',
       name: 'action',
       message: `Claude Code Server Manager ${statusText}`,
-      pageSize: 15, // 设置菜单显示行数
+      pageSize: 15, // Set number of visible menu rows
       choices: [
-        { name: '▶ 启动服务', value: 'start', disabled: running ? '已在运行' : false },
-        { name: '■ 停止服务', value: 'stop', disabled: !running ? '未运行' : false },
-        { name: '● 查看状态', value: 'status' },
-        { name: '💬 会话管理', value: 'sessions', disabled: !running ? '服务未运行' : false },
-        { name: '📊 查看统计', value: 'statistics', disabled: !running ? '服务未运行' : false },
-        { name: '📋 任务列表', value: 'tasks', disabled: !running ? '服务未运行' : false },
-        { name: '📋 查看日志 (tail -f)', value: 'logs', disabled: !fs.existsSync(logFile) ? '无日志文件' : false },
-        { name: '📖 查看接口文档', value: 'docs' },
-        { name: '⚙ 配置设置', value: 'config' },
-        { name: '🧪 测试 API', value: 'test', disabled: !running ? '服务未运行' : false },
-        { name: '✖ 退出', value: 'exit' },
+        {
+          name: '▶ Start Service',
+          value: 'start',
+          disabled: running ? 'Already running' : false,
+        },
+        {
+          name: '■ Stop Service',
+          value: 'stop',
+          disabled: !running ? 'Not running' : false,
+        },
+        { name: '● View Status', value: 'status' },
+        {
+          name: '💬 Session Management',
+          value: 'sessions',
+          disabled: !running ? 'Service not running' : false,
+        },
+        {
+          name: '📊 View Statistics',
+          value: 'statistics',
+          disabled: !running ? 'Service not running' : false,
+        },
+        {
+          name: '📋 Task List',
+          value: 'tasks',
+          disabled: !running ? 'Service not running' : false,
+        },
+        {
+          name: '📋 View Logs (tail -f)',
+          value: 'logs',
+          disabled: !fs.existsSync(logFile) ? 'No log file' : false,
+        },
+        { name: '📖 View API Docs', value: 'docs' },
+        { name: '⚙ Configuration', value: 'config' },
+        {
+          name: '🧪 Test API',
+          value: 'test',
+          disabled: !running ? 'Service not running' : false,
+        },
+        { name: '✖ Exit', value: 'exit' },
       ],
     },
   ]);
@@ -1293,7 +1501,7 @@ async function mainMenu() {
       await testApi();
       break;
     case 'exit':
-      console.log(chalk.gray('再见！'));
+      console.log(chalk.gray('Goodbye!'));
       process.exit(0);
   }
 
@@ -1301,14 +1509,14 @@ async function mainMenu() {
   await mainMenu();
 }
 
-// 命令行参数处理
+// Command-line argument handling
 const args = process.argv.slice(2);
 
 if (args.length === 0) {
-  // 交互式菜单
+  // Interactive menu
   mainMenu().catch(console.error);
 } else {
-  // 命令行模式
+  // Command-line mode
   const command = args[0];
 
   switch (command) {
@@ -1334,9 +1542,15 @@ if (args.length === 0) {
       testApi().then(() => process.exit(0));
       break;
     default:
-      console.log(chalk.red('未知命令: ') + command);
-      console.log(chalk.gray('可用命令: start, stop, status, logs, docs, config, test'));
-      console.log(chalk.gray('或直接运行进入交互式菜单'));
+      console.log(chalk.red('Unknown command: ') + command);
+      console.log(
+        chalk.gray(
+          'Available commands: start, stop, status, logs, docs, config, test',
+        ),
+      );
+      console.log(
+        chalk.gray('Or run without arguments to open interactive menu'),
+      );
       process.exit(1);
   }
 }

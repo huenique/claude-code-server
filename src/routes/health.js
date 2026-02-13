@@ -1,5 +1,5 @@
 /**
- * 健康检查路由
+ * Health check route
  */
 function createHealthRoute() {
   return (req, res) => {

@@ -2,13 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// 动态导入 LowDB ESM 模块
+// Dynamically import LowDB ESM modules
 async function loadLowDB() {
   const lowdb = await import('lowdb');
   return lowdb;
 }
 
-// 创建 CommonJS 兼容的导入函数
+// Create CommonJS-compatible import helper
 async function getLowDB() {
   const lowdb = await loadLowDB();
   return lowdb.Low;
@@ -20,7 +20,7 @@ async function getJSONFile() {
 }
 
 /**
- * 带文件锁的基础存储类
+ * Base store class with file locking
  */
 class BaseStore {
   constructor(dataDir, dbFileName) {
@@ -32,26 +32,26 @@ class BaseStore {
   }
 
   /**
-   * 初始化数据库
+   * Initialize database
    */
   async init() {
-    // 确保数据目录存在
+    // Ensure data directory exists
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
 
-    // 动态导入 ESM 模块
+    // Dynamically import ESM modules
     const LowDB = await getLowDB();
     const JSONFile = await getJSONFile();
 
-    // 初始化 LowDB
+    // Initialize LowDB
     const adapter = new JSONFile(this.dbPath);
     this.db = new LowDB(adapter, this.getDefaultData());
 
-    // 读取数据
+    // Read data
     await this.db.read();
 
-    // 如果是新文件，写入默认数据
+    // If this is a new file, write default data
     if (!this.db.data) {
       this.db.data = this.getDefaultData();
       await this.db.write();
@@ -59,28 +59,28 @@ class BaseStore {
   }
 
   /**
-   * 获取默认数据结构（子类需要实现）
+   * Get default data structure (must be implemented by subclass)
    */
   getDefaultData() {
     return {};
   }
 
   /**
-   * 获取文件锁
+   * Acquire file lock
    */
   async acquireLock(timeout = 5000) {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
       try {
-        // 尝试创建锁文件（O_EXCL 标志确保原子性）
+        // Try creating lock file (O_EXCL ensures atomicity)
         const lockId = crypto.randomUUID();
         fs.writeFileSync(this.lockFilePath, lockId, { flag: 'wx' });
         return lockId;
       } catch (err) {
         if (err.code === 'EEXIST') {
-          // 锁文件已存在，等待后重试
-          await new Promise(resolve => setTimeout(resolve, 50));
+          // Lock file exists, wait and retry
+          await new Promise((resolve) => setTimeout(resolve, 50));
         } else {
           throw err;
         }
@@ -91,22 +91,22 @@ class BaseStore {
   }
 
   /**
-   * 释放文件锁
+   * Release file lock
    */
   releaseLock(lockId) {
     try {
-      // 验证锁文件中的 ID 是否匹配
+      // Verify lock file ID matches
       const currentLockId = fs.readFileSync(this.lockFilePath, 'utf8');
       if (currentLockId === lockId) {
         fs.unlinkSync(this.lockFilePath);
       }
     } catch (err) {
-      // 忽略错误
+      // Ignore errors
     }
   }
 
   /**
-   * 带锁的写入操作
+   * Locked write operation
    */
   async withLock(operation) {
     const lockId = await this.acquireLock();
@@ -120,14 +120,14 @@ class BaseStore {
   }
 
   /**
-   * 生成 UUID
+   * Generate UUID
    */
   generateId() {
     return crypto.randomUUID();
   }
 
   /**
-   * 获取当前时间戳
+   * Get current timestamp
    */
   now() {
     return new Date().toISOString();

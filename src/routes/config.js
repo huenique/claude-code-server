@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * 配置信息路由
+ * Configuration route
  */
 function createConfigRoute(configPath) {
   return (req, res) => {

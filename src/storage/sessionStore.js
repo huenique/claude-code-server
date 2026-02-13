@@ -1,7 +1,7 @@
 const BaseStore = require('./baseStore');
 
 /**
- * 会话存储
+ * Session store
  */
 class SessionStore extends BaseStore {
   constructor(dataDir = './data/sessions') {
@@ -9,14 +9,14 @@ class SessionStore extends BaseStore {
   }
 
   /**
-   * 获取默认数据结构
+   * Get default data structure
    */
   getDefaultData() {
     return { sessions: [] };
   }
 
   /**
-   * 创建会话
+   * Create session
    */
   async create(sessionData) {
     return this.withLock(async () => {
@@ -38,24 +38,24 @@ class SessionStore extends BaseStore {
   }
 
   /**
-   * 获取会话
+   * Get session
    */
   async get(sessionId) {
     await this.db.read();
-    return this.db.data.sessions.find(s => s.id === sessionId);
+    return this.db.data.sessions.find((s) => s.id === sessionId);
   }
 
   /**
-   * 更新会话
+   * Update session
    */
   async update(sessionId, updates) {
     return this.withLock(async () => {
-      const index = this.db.data.sessions.findIndex(s => s.id === sessionId);
+      const index = this.db.data.sessions.findIndex((s) => s.id === sessionId);
       if (index === -1) {
         return null;
       }
 
-      // 合并更新
+      // Merge updates
       this.db.data.sessions[index] = {
         ...this.db.data.sessions[index],
         ...updates,
@@ -67,11 +67,11 @@ class SessionStore extends BaseStore {
   }
 
   /**
-   * 删除会话
+   * Delete session
    */
   async delete(sessionId) {
     return this.withLock(async () => {
-      const index = this.db.data.sessions.findIndex(s => s.id === sessionId);
+      const index = this.db.data.sessions.findIndex((s) => s.id === sessionId);
       if (index === -1) {
         return false;
       }
@@ -82,26 +82,28 @@ class SessionStore extends BaseStore {
   }
 
   /**
-   * 列出所有会话
+   * List all sessions
    */
   async list(options = {}) {
     await this.db.read();
 
     let sessions = this.db.data.sessions;
 
-    // 过滤条件
+    // Filter conditions
     if (options.status) {
-      sessions = sessions.filter(s => s.status === options.status);
+      sessions = sessions.filter((s) => s.status === options.status);
     }
 
     if (options.project_path) {
-      sessions = sessions.filter(s => s.project_path === options.project_path);
+      sessions = sessions.filter(
+        (s) => s.project_path === options.project_path,
+      );
     }
 
-    // 排序
+    // Sorting
     sessions.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
-    // 分页
+    // Pagination
     if (options.limit) {
       sessions = sessions.slice(0, options.limit);
     }
@@ -110,21 +112,23 @@ class SessionStore extends BaseStore {
   }
 
   /**
-   * 搜索会话
+   * Search sessions
    */
   async search(query, options = {}) {
     await this.db.read();
 
     const lowerQuery = query.toLowerCase();
-    let sessions = this.db.data.sessions.filter(s =>
-      s.id.toLowerCase().includes(lowerQuery) ||
-      (s.metadata && JSON.stringify(s.metadata).toLowerCase().includes(lowerQuery))
+    let sessions = this.db.data.sessions.filter(
+      (s) =>
+        s.id.toLowerCase().includes(lowerQuery) ||
+        (s.metadata &&
+          JSON.stringify(s.metadata).toLowerCase().includes(lowerQuery)),
     );
 
-    // 排序
+    // Sorting
     sessions.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
-    // 分页
+    // Pagination
     if (options.limit) {
       sessions = sessions.slice(0, options.limit);
     }
@@ -133,7 +137,7 @@ class SessionStore extends BaseStore {
   }
 
   /**
-   * 清理过期会话
+   * Clean up expired sessions
    */
   async cleanup(retentionDays) {
     return this.withLock(async () => {
@@ -142,7 +146,7 @@ class SessionStore extends BaseStore {
 
       const beforeCount = this.db.data.sessions.length;
       this.db.data.sessions = this.db.data.sessions.filter(
-        s => new Date(s.updated_at) > cutoffDate
+        (s) => new Date(s.updated_at) > cutoffDate,
       );
       const deletedCount = beforeCount - this.db.data.sessions.length;
 
@@ -151,11 +155,11 @@ class SessionStore extends BaseStore {
   }
 
   /**
-   * 增加消息计数
+   * Increment message count
    */
   async incrementMessages(sessionId) {
     return this.withLock(async () => {
-      const session = this.db.data.sessions.find(s => s.id === sessionId);
+      const session = this.db.data.sessions.find((s) => s.id === sessionId);
       if (!session) {
         return null;
       }
@@ -168,11 +172,11 @@ class SessionStore extends BaseStore {
   }
 
   /**
-   * 增加花费
+   * Add cost
    */
   async addCost(sessionId, costUsd) {
     return this.withLock(async () => {
-      const session = this.db.data.sessions.find(s => s.id === sessionId);
+      const session = this.db.data.sessions.find((s) => s.id === sessionId);
       if (!session) {
         return null;
       }

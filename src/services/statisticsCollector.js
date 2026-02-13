@@ -3,18 +3,21 @@ const cron = require('node-cron');
 const getLogger = require('../utils/logger');
 
 /**
- * 统计收集服务
+ * Statistics collector service
  */
 class StatisticsCollector {
   constructor(config, statsStore) {
     this.config = config;
     this.statsStore = statsStore;
-    this.logger = getLogger({ logFile: config.logFile, logLevel: config.logLevel });
+    this.logger = getLogger({
+      logFile: config.logFile,
+      logLevel: config.logLevel,
+    });
     this.collectionTask = null;
   }
 
   /**
-   * 启动统计收集
+   * Start statistics collection
    */
   start() {
     if (!this.config.statistics?.enabled) {
@@ -22,7 +25,7 @@ class StatisticsCollector {
       return;
     }
 
-    // 每分钟收集一次统计信息
+    // Collect statistics once per minute
     const interval = this.config.statistics.collectionInterval || 60000;
     const cronExpression = this.intervalToCron(interval);
 
@@ -34,7 +37,7 @@ class StatisticsCollector {
   }
 
   /**
-   * 停止统计收集
+   * Stop statistics collection
    */
   stop() {
     if (this.collectionTask) {
@@ -45,12 +48,12 @@ class StatisticsCollector {
   }
 
   /**
-   * 收集统计信息
+   * Collect statistics
    */
   async collectStatistics() {
     try {
-      // 这里可以收集系统级别的统计信息
-      // 例如：内存使用、CPU 使用等
+      // System-level statistics can be collected here
+      // For example: memory usage, CPU usage, etc.
 
       const stats = {
         timestamp: new Date().toISOString(),
@@ -60,51 +63,53 @@ class StatisticsCollector {
 
       this.logger.debug('Statistics collected', stats);
     } catch (error) {
-      this.logger.error('Failed to collect statistics', { error: error.message });
+      this.logger.error('Failed to collect statistics', {
+        error: error.message,
+      });
     }
   }
 
   /**
-   * 获取汇总统计
+   * Get summary statistics
    */
   async getSummary() {
     return await this.statsStore.getSummary();
   }
 
   /**
-   * 获取每日统计
+   * Get daily statistics
    */
   async getDaily(options = {}) {
     return await this.statsStore.getDaily(options);
   }
 
   /**
-   * 获取日期范围统计
+   * Get date-range statistics
    */
   async getByDateRange(startDate, endDate) {
     return await this.statsStore.getByDateRange(startDate, endDate);
   }
 
   /**
-   * 获取热门模型
+   * Get top models
    */
   async getTopModels(limit = 10) {
     return await this.statsStore.getTopModels(limit);
   }
 
   /**
-   * 重置统计
+   * Reset statistics
    */
   async reset() {
     return await this.statsStore.reset();
   }
 
   /**
-   * 将间隔转换为 cron 表达式
+   * Convert interval to cron expression
    */
   intervalToCron(intervalMs) {
-    // 简单实现：每分钟执行一次
-    // 更复杂的实现可以根据间隔动态生成 cron 表达式
+    // Simple implementation: run once per minute
+    // More complex implementations can generate cron expressions dynamically by interval
     return '* * * * *';
   }
 }

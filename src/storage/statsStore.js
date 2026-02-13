@@ -1,7 +1,7 @@
 const BaseStore = require('./baseStore');
 
 /**
- * 统计存储
+ * Statistics store
  */
 class StatsStore extends BaseStore {
   constructor(dataDir = './data/statistics') {
@@ -9,7 +9,7 @@ class StatsStore extends BaseStore {
   }
 
   /**
-   * 获取默认数据结构
+   * Get default data structure
    */
   getDefaultData() {
     return {
@@ -31,13 +31,13 @@ class StatsStore extends BaseStore {
   }
 
   /**
-   * 记录请求
+   * Record request
    */
   async recordRequest(data) {
     return this.withLock(async () => {
       const today = this.getToday();
 
-      // 更新总体统计
+      // Update overall statistics
       this.db.data.requests.total++;
       if (data.success) {
         this.db.data.requests.successful++;
@@ -45,7 +45,7 @@ class StatsStore extends BaseStore {
         this.db.data.requests.failed++;
       }
 
-      // 更新 token 统计
+      // Update token statistics
       if (data.input_tokens) {
         this.db.data.tokens.total_input += data.input_tokens;
       }
@@ -53,12 +53,12 @@ class StatsStore extends BaseStore {
         this.db.data.tokens.total_output += data.output_tokens;
       }
 
-      // 更新花费统计
+      // Update cost statistics
       if (data.cost_usd) {
         this.db.data.costs.total_usd += data.cost_usd;
       }
 
-      // 更新模型统计
+      // Update model statistics
       if (data.model) {
         if (!this.db.data.models[data.model]) {
           this.db.data.models[data.model] = {
@@ -70,8 +70,8 @@ class StatsStore extends BaseStore {
         this.db.data.models[data.model].cost_usd += data.cost_usd || 0;
       }
 
-      // 更新每日统计
-      let dailyEntry = this.db.data.daily.find(d => d.date === today);
+      // Update daily statistics
+      let dailyEntry = this.db.data.daily.find((d) => d.date === today);
       if (!dailyEntry) {
         dailyEntry = {
           date: today,
@@ -97,7 +97,7 @@ class StatsStore extends BaseStore {
       dailyEntry.total_input_tokens += data.input_tokens || 0;
       dailyEntry.total_output_tokens += data.output_tokens || 0;
 
-      // 更新每日模型统计
+      // Update daily model statistics
       if (data.model) {
         if (!dailyEntry.models[data.model]) {
           dailyEntry.models[data.model] = 0;
@@ -105,7 +105,7 @@ class StatsStore extends BaseStore {
         dailyEntry.models[data.model]++;
       }
 
-      // 保留最近 90 天的数据
+      // Keep data for the most recent 90 days
       this.cleanupOldDailyEntries(90);
 
       return dailyEntry;
@@ -113,7 +113,7 @@ class StatsStore extends BaseStore {
   }
 
   /**
-   * 获取汇总统计
+   * Get summary statistics
    */
   async getSummary() {
     await this.db.read();
@@ -127,17 +127,17 @@ class StatsStore extends BaseStore {
   }
 
   /**
-   * 获取每日统计
+   * Get daily statistics
    */
   async getDaily(options = {}) {
     await this.db.read();
 
     let daily = this.db.data.daily;
 
-    // 按日期倒序
+    // Sort by date descending
     daily = daily.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    // 限制返回数量
+    // Limit number of returned items
     if (options.limit) {
       daily = daily.slice(0, options.limit);
     }
@@ -146,28 +146,28 @@ class StatsStore extends BaseStore {
   }
 
   /**
-   * 获取特定日期的统计
+   * Get statistics for a specific date
    */
   async getByDate(date) {
     await this.db.read();
 
-    return this.db.data.daily.find(d => d.date === date);
+    return this.db.data.daily.find((d) => d.date === date);
   }
 
   /**
-   * 获取日期范围统计
+   * Get date-range statistics
    */
   async getByDateRange(startDate, endDate) {
     await this.db.read();
 
-    return this.db.data.daily.filter(d => {
+    return this.db.data.daily.filter((d) => {
       const date = new Date(d.date);
       return date >= new Date(startDate) && date <= new Date(endDate);
     });
   }
 
   /**
-   * 获取今天的日期（YYYY-MM-DD）
+   * Get today's date (YYYY-MM-DD)
    */
   getToday() {
     const now = new Date();
@@ -175,19 +175,19 @@ class StatsStore extends BaseStore {
   }
 
   /**
-   * 清理旧的每日统计
+   * Clean up old daily statistics
    */
   cleanupOldDailyEntries(retentionDays) {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
     this.db.data.daily = this.db.data.daily.filter(
-      d => new Date(d.date) >= cutoffDate
+      (d) => new Date(d.date) >= cutoffDate,
     );
   }
 
   /**
-   * 重置统计
+   * Reset statistics
    */
   async reset() {
     return this.withLock(async () => {
@@ -196,7 +196,7 @@ class StatsStore extends BaseStore {
   }
 
   /**
-   * 获取热门模型
+   * Get top models
    */
   async getTopModels(limit = 10) {
     await this.db.read();

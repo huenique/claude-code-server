@@ -1,11 +1,11 @@
 const Joi = require('joi');
 
 /**
- * 验证工具
+ * Validation utilities
  */
 class Validators {
   /**
-   * 验证 Claude API 请求
+   * Validate Claude API request
    */
   static validateClaudeRequest(data) {
     const schema = Joi.object({
@@ -36,7 +36,7 @@ class Validators {
   }
 
   /**
-   * 验证会话创建请求
+   * Validate session creation request
    */
   static validateSessionCreate(data) {
     const schema = Joi.object({
@@ -56,7 +56,7 @@ class Validators {
   }
 
   /**
-   * 验证会话继续请求
+   * Validate session continuation request
    */
   static validateSessionContinue(data) {
     const schema = Joi.object({
@@ -77,7 +77,7 @@ class Validators {
   }
 
   /**
-   * 验证异步任务创建请求
+   * Validate async task creation request
    */
   static validateTaskCreate(data) {
     const schema = Joi.object({
@@ -99,7 +99,7 @@ class Validators {
   }
 
   /**
-   * 验证批量处理请求
+   * Validate batch request
    */
   static validateBatchRequest(data) {
     const schema = Joi.object({
@@ -119,7 +119,7 @@ class Validators {
   }
 
   /**
-   * 验证搜索查询
+   * Validate search query
    */
   static validateSearchQuery(query) {
     const schema = Joi.object({

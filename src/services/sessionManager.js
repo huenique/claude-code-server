@@ -3,27 +3,33 @@ const ClaudeExecutor = require('./claudeExecutor');
 const getLogger = require('../utils/logger');
 
 /**
- * 会话管理服务
+ * Session management service
  */
 class SessionManager {
   constructor(config, sessionStore, claudeExecutor) {
     this.config = config;
     this.sessionStore = sessionStore;
     this.claudeExecutor = claudeExecutor;
-    this.logger = getLogger({ logFile: config.logFile, logLevel: config.logLevel });
+    this.logger = getLogger({
+      logFile: config.logFile,
+      logLevel: config.logLevel,
+    });
   }
 
   /**
-   * 创建新会话
+   * Create a new session
    */
   async createSession(sessionData) {
     const session = await this.sessionStore.create(sessionData);
-    this.logger.info(`Session created`, { session_id: session.id, project_path: session.project_path });
+    this.logger.info(`Session created`, {
+      session_id: session.id,
+      project_path: session.project_path,
+    });
     return session;
   }
 
   /**
-   * 获取会话详情
+   * Get session details
    */
   async getSession(sessionId) {
     const session = await this.sessionStore.get(sessionId);
@@ -34,7 +40,7 @@ class SessionManager {
   }
 
   /**
-   * 继续会话对话
+   * Continue a session conversation
    */
   async continueSession(sessionId, options) {
     const session = await this.sessionStore.get(sessionId);
@@ -45,7 +51,7 @@ class SessionManager {
       };
     }
 
-    // 检查会话状态
+    // Check session status
     if (session.status !== 'active') {
       return {
         success: false,
@@ -53,7 +59,7 @@ class SessionManager {
       };
     }
 
-    // 使用会话的配置执行 Claude
+    // Execute Claude using session configuration
     const result = await this.claudeExecutor.execute({
       prompt: options.prompt,
       projectPath: session.project_path,
@@ -68,7 +74,7 @@ class SessionManager {
   }
 
   /**
-   * 列出会话
+   * List sessions
    */
   async listSessions(options = {}) {
     const sessions = await this.sessionStore.list(options);
@@ -76,7 +82,7 @@ class SessionManager {
   }
 
   /**
-   * 搜索会话
+   * Search sessions
    */
   async searchSessions(query, options = {}) {
     const sessions = await this.sessionStore.search(query, options);
@@ -84,7 +90,7 @@ class SessionManager {
   }
 
   /**
-   * 删除会话
+   * Delete session
    */
   async deleteSession(sessionId) {
     const deleted = await this.sessionStore.delete(sessionId);
@@ -96,19 +102,22 @@ class SessionManager {
   }
 
   /**
-   * 更新会话状态
+   * Update session status
    */
   async updateSessionStatus(sessionId, status) {
     const session = await this.sessionStore.update(sessionId, { status });
     if (session) {
-      this.logger.info(`Session status updated`, { session_id: sessionId, status });
+      this.logger.info(`Session status updated`, {
+        session_id: sessionId,
+        status,
+      });
       return { success: true, session };
     }
     return { success: false, error: 'Session not found' };
   }
 
   /**
-   * 获取会话统计
+   * Get session statistics
    */
   async getSessionStats(sessionId) {
     const session = await this.sessionStore.get(sessionId);
@@ -129,12 +138,14 @@ class SessionManager {
   }
 
   /**
-   * 清理过期会话
+   * Clean up expired sessions
    */
   async cleanupExpiredSessions() {
     const retentionDays = this.config.sessionRetentionDays || 30;
     const result = await this.sessionStore.cleanup(retentionDays);
-    this.logger.info(`Expired sessions cleaned up`, { deleted_count: result.deletedCount });
+    this.logger.info(`Expired sessions cleaned up`, {
+      deleted_count: result.deletedCount,
+    });
     return result;
   }
 }

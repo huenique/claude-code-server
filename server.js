@@ -4,15 +4,15 @@ const fs = require('fs');
 const os = require('os');
 const chalk = require('chalk');
 
-// 配置目录和文件
+// Configuration directory and file
 const configDir = path.join(
   process.env.HOME || os.homedir(),
   '.claude-code-server',
 );
 const configPath = path.join(configDir, 'config.json');
 
-// 默认配置（用于未找到路径时的回退）
-// 注意：这些路径会在 loadConfig() 中动态修正
+// Default config (fallback when paths are not found)
+// Note: These paths are dynamically corrected in loadConfig()
 const defaultConfig = {
   port: 5546,
   host: '0.0.0.0',
@@ -53,9 +53,9 @@ const defaultConfig = {
   sessionRetentionDays: 30,
 };
 
-// 加载配置（支持异步路径检测）
+// Load config (supports async path detection)
 async function loadConfig() {
-  // 确保所有必要目录都存在
+  // Ensure all required directories exist
   const dirsToCreate = [
     configDir,
     path.join(process.env.HOME || os.homedir(), '.claude-code-server', 'logs'),
@@ -66,69 +66,78 @@ async function loadConfig() {
     if (!fs.existsSync(dir)) {
       try {
         fs.mkdirSync(dir, { recursive: true });
-        console.log(`✅ 创建目录: ${dir}`);
+        console.log(`✅ Created directory: ${dir}`);
       } catch (err) {
-        console.error(`❌ 创建目录失败 ${dir}:`, err.message);
-        // 尝试继续，不中断流程
+        console.error(`❌ Failed to create directory ${dir}:`, err.message);
+        // Try to continue without interrupting the flow
       }
     }
   }
 
   let config;
   if (!fs.existsSync(configPath)) {
-    // 首次启动，使用默认配置
+    // First startup: use default config
     config = { ...defaultConfig };
     try {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      console.log(`✅ 创建配置文件: ${configPath}`);
+      console.log(`✅ Created config file: ${configPath}`);
     } catch (err) {
-      console.error(`❌ 创建配置文件失败 ${configPath}:`, err.message);
+      console.error(
+        `❌ Failed to create config file ${configPath}:`,
+        err.message,
+      );
       throw err;
     }
   } else {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   }
 
-  // 检测是否为 root 用户
+  // Detect whether running as root user
   const isRunningAsRoot =
     typeof process.getuid === 'function' && process.getuid() === 0; // UID 0 = root
 
   if (isRunningAsRoot && config.enableRootCompatibility === false) {
-    // 如果是 root 用户且未启用 root 兼容模式，显示错误并退出
+    // If running as root and root compatibility is disabled, show error and exit
     console.error('');
     console.error(chalk.red.bold('═════════════════════════════════════════'));
     console.error(
-      chalk.red.bold('⚠️  检测到以 root 用户运行，但 root 兼容模式未启用'),
+      chalk.red.bold(
+        '⚠️  Detected root user mode, but root compatibility is disabled',
+      ),
     );
     console.error('');
     console.error(
       chalk.yellow(
-        'Claude CLI 不允许在 root 权限下使用 --allow-dangerously-skip-permissions',
+        'Claude CLI does not allow --allow-dangerously-skip-permissions when running as root',
       ),
     );
     console.error('');
-    console.error(chalk.cyan('解决方案：'));
-    console.error(chalk.white('  1. 在配置菜单中启用"root 兼容模式"'));
-    console.error(chalk.white('  2. 或者使用普通用户运行服务'));
+    console.error(chalk.cyan('Solutions:'));
+    console.error(
+      chalk.white('  1. Enable "Root Compatibility Mode" in the config menu'),
+    );
+    console.error(chalk.white('  2. Or run the service as a non-root user'));
     console.error('');
-    console.error(chalk.gray('提示：使用 "node cli.js" 进入配置菜单'));
+    console.error(chalk.gray('Tip: run "node cli.js" to open the config menu'));
     console.error(chalk.red.bold('═════════════════════════════════════════'));
     console.error('');
     process.exit(1);
   } else if (isRunningAsRoot && config.enableRootCompatibility !== false) {
-    // root 用户且已启用 root 兼容模式，显示提示信息但继续运行
+    // Running as root with root compatibility enabled: show notice and continue
     console.error('');
     console.error(
       chalk.yellow.bold('═════════════════════════════════════════'),
     );
-    console.error(chalk.yellow.bold('ℹ️  Root 兼容模式已启用'));
+    console.error(chalk.yellow.bold('ℹ️  Root Compatibility Mode is enabled'));
     console.error('');
     console.error(
-      chalk.cyan('正在使用 IS_SANDBOX=1 环境变量绕过 Claude CLI 的 root 限制'),
+      chalk.cyan('Using IS_SANDBOX=1 to bypass Claude CLI root restrictions'),
     );
     console.error('');
     console.error(
-      chalk.yellow('⚠️  请确保您了解在 root 下运行 AI 助手的风险！'),
+      chalk.yellow(
+        '⚠️  Please make sure you understand the risks of running an AI assistant as root!',
+      ),
     );
     console.error(
       chalk.yellow.bold('═════════════════════════════════════════'),
@@ -136,34 +145,34 @@ async function loadConfig() {
     console.error('');
   }
 
-  // 自动检测和修复路径
+  // Auto-detect and fix paths
   const PathResolver = require('./src/utils/pathResolver');
   const resolver = new PathResolver();
   const results = await resolver.detectAndValidate(config);
   const { updates, warnings } = resolver.applyDetectionResults(config, results);
 
-  // 如果路径有更新，保存配置
+  // If paths were updated, save config
   if (updates.length > 0) {
     try {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      console.log(`✅ 配置已更新: ${configPath}`);
+      console.log(`✅ Config updated: ${configPath}`);
     } catch (err) {
-      console.error(`❌ 更新配置失败 ${configPath}:`, err.message);
+      console.error(`❌ Failed to update config ${configPath}:`, err.message);
     }
   }
 
-  // 保存诊断信息用于日志输出
+  // Save diagnostics for log output
   config._pathDetection = { updates, warnings };
 
   return config;
 }
 
-// 主初始化函数
+// Main initialization function
 async function main() {
-  // 加载配置（包含路径自动检测）
+  // Load config (including automatic path detection)
   const config = await loadConfig();
 
-  // 确保日志目录存在
+  // Ensure log directory exists
   if (config.logFile) {
     const logDir = path.dirname(config.logFile);
     if (!fs.existsSync(logDir)) {
@@ -171,14 +180,14 @@ async function main() {
     }
   }
 
-  // 获取 logger
+  // Get logger
   const getLogger = require('./src/utils/logger');
   const logger = getLogger({
     logFile: config.logFile,
     logLevel: config.logLevel,
   });
 
-  // 输出路径检测结果
+  // Output path detection results
   if (config._pathDetection.updates.length > 0) {
     logger.info('Auto-detected paths:', {
       updates: config._pathDetection.updates,
@@ -190,10 +199,10 @@ async function main() {
     });
   }
 
-  // 删除内部诊断信息
+  // Remove internal diagnostics
   delete config._pathDetection;
 
-  // 重置所有服务模块的缓存（确保后台模式使用正确的配置）
+  // Reset cache for all service modules (ensure background mode uses correct config)
   const modulePaths = [
     './src/utils/logger',
     './src/services/claudeExecutor',
@@ -211,7 +220,7 @@ async function main() {
     delete require.cache[require.resolve(modPath)];
   });
 
-  // 初始化存储
+  // Initialize storage
   const SessionStore = require('./src/storage/sessionStore');
   const TaskStore = require('./src/storage/taskStore');
   const StatsStore = require('./src/storage/statsStore');
@@ -220,7 +229,7 @@ async function main() {
   const taskStore = new TaskStore(config.dataDir + '/tasks');
   const statsStore = new StatsStore(config.dataDir + '/statistics');
 
-  // 初始化服务
+  // Initialize services
   const ClaudeExecutor = require('./src/services/claudeExecutor');
   const SessionManager = require('./src/services/sessionManager');
   const RateLimiter = require('./src/services/rateLimiter');
@@ -244,7 +253,7 @@ async function main() {
     webhookNotifier,
   );
 
-  // 加载路由
+  // Load routes
   const createHealthRoute = require('./src/routes/health');
   const createConfigRoute = require('./src/routes/config');
   const createClaudeRoutes = require('./src/routes/claude');
@@ -252,18 +261,18 @@ async function main() {
   const createStatisticsRoutes = require('./src/routes/statistics');
   const createTaskRoutes = require('./src/routes/tasks');
 
-  // 创建 Express 应用
+  // Create Express app
   const app = express();
   const PORT = process.env.PORT || config.port;
   const HOST = process.env.HOST || config.host;
 
-  // 中间件
+  // Middleware
   app.use(express.json());
 
-  // 应用速率限制
+  // Apply rate limiting
   app.use('/api/', rateLimiter.getMiddleware());
 
-  // 挂载路由
+  // Mount routes
   app.get('/health', createHealthRoute());
   app.get('/api/config', createConfigRoute(configPath));
   app.use(
@@ -274,25 +283,25 @@ async function main() {
   app.use('/api/statistics', createStatisticsRoutes(statisticsCollector));
   app.use('/api/tasks', createTaskRoutes(taskQueue));
 
-  // 配置热重载
+  // Configure hot reload
   let configWatcher = null;
   let reloadCount = 0;
 
-  // 热重载配置
+  // Hot-reload config
   async function hotReloadConfig() {
     try {
       reloadCount++;
 
-      // 重新加载配置
+      // Reload config
       const newConfig = await loadConfig();
 
-      // 检查关键配置变化
+      // Check critical config changes
       const configChanges = [];
       if (newConfig.taskQueue?.concurrency !== config.taskQueue?.concurrency) {
         configChanges.push(
           `taskQueue.concurrency: ${config.taskQueue?.concurrency} → ${newConfig.taskQueue?.concurrency}`,
         );
-        // 更新 TaskQueue 并发数
+        // Update TaskQueue concurrency
         taskQueue.concurrency = newConfig.taskQueue?.concurrency || 3;
         taskQueue.defaultTimeout =
           newConfig.taskQueue?.defaultTimeout || 300000;
@@ -306,7 +315,7 @@ async function main() {
         configChanges.push(
           `webhook.enabled: ${config.webhook?.enabled} → ${newConfig.webhook?.enabled}`,
         );
-        // 更新 WebhookNotifier
+        // Update WebhookNotifier
         webhookNotifier.config = newConfig;
       }
       if (newConfig.logLevel !== config.logLevel) {
@@ -315,43 +324,43 @@ async function main() {
         );
       }
 
-      // 更新配置对象（保留引用）
+      // Update config object (preserve reference)
       Object.assign(config, newConfig);
 
       if (configChanges.length > 0) {
-        logger.info(`[Config Reload #${reloadCount}] 配置已更新:`, {
+        logger.info(`[Config Reload #${reloadCount}] Config updated:`, {
           changes: configChanges,
         });
       } else {
         logger.info(
-          `[Config Reload #${reloadCount}] 配置文件已重新加载（无变化）`,
+          `[Config Reload #${reloadCount}] Config file reloaded (no changes)`,
         );
       }
 
       logger.info(
-        `[Config Reload #${reloadCount}] 当前任务队列并发数: ${taskQueue.concurrency}`,
+        `[Config Reload #${reloadCount}] Current task queue concurrency: ${taskQueue.concurrency}`,
       );
     } catch (error) {
       const logger = require('./src/utils/logger')({
         logFile: config.logFile,
         logLevel: 'error',
       });
-      logger.error(`[Config Reload #${reloadCount}] 配置重载失败:`, {
+      logger.error(`[Config Reload #${reloadCount}] Config reload failed:`, {
         error: error.message,
       });
     }
   }
 
-  // 启动配置文件监听
+  // Start config file watcher
   function startConfigWatcher() {
     if (configWatcher) {
-      return; // 已经在监听
+      return; // Already watching
     }
 
     try {
-      // 使用防抖，避免多次触发
+      // Debounce to avoid multiple triggers
       let reloadTimer = null;
-      const DEBOUNCE_DELAY = 500; // 500ms 防抖
+      const DEBOUNCE_DELAY = 500; // 500ms debounce
 
       configWatcher = fs.watch(configPath, (eventType, filename) => {
         if (eventType === 'change') {
@@ -368,20 +377,22 @@ async function main() {
         logFile: config.logFile,
         logLevel: config.logLevel,
       });
-      logger.info(`配置文件监听已启动: ${configPath}`);
-      logger.info('配置文件修改将自动生效（热重载）');
+      logger.info(`Config file watcher started: ${configPath}`);
+      logger.info('Config changes will be applied automatically (hot reload)');
     } catch (error) {
       const logger = require('./src/utils/logger')({
         logFile: config.logFile,
         logLevel: 'error',
       });
-      logger.error('启动配置文件监听失败:', { error: error.message });
+      logger.error('Failed to start config file watcher:', {
+        error: error.message,
+      });
     }
   }
 
-  // 启动服务器
+  // Start server
   const server = app.listen(PORT, HOST, async () => {
-    // 初始化存储
+    // Initialize storage
     await sessionStore.init();
     await taskStore.init();
     await statsStore.init();
@@ -395,16 +406,16 @@ async function main() {
     logger.info(`NVM bin: ${config.nvmBin}`);
     logger.info(`Default project: ${config.defaultProjectPath}`);
 
-    // 启动统计收集器
+    // Start statistics collector
     statisticsCollector.start();
 
-    // 启动任务队列
+    // Start task queue
     await taskQueue.start();
 
-    // 启动配置文件监听
+    // Start config file watcher
     startConfigWatcher();
 
-    // 写入 PID 文件
+    // Write PID file
     if (config.pidFile) {
       const pidDir = path.dirname(config.pidFile);
       if (!fs.existsSync(pidDir)) {
@@ -414,7 +425,7 @@ async function main() {
     }
   });
 
-  // 优雅关闭
+  // Graceful shutdown
   async function shutdown(signal) {
     const logger = require('./src/utils/logger')({
       logFile: config.logFile,
@@ -422,30 +433,30 @@ async function main() {
     });
     logger.info(`${signal} received, shutting down gracefully...`);
 
-    // 停止配置文件监听
+    // Stop config file watcher
     if (configWatcher) {
       configWatcher.close();
       configWatcher = null;
-      logger.info('配置文件监听已停止');
+      logger.info('Config file watcher stopped');
     }
 
-    // 停止统计收集器
+    // Stop statistics collector
     statisticsCollector.stop();
 
-    // 停止任务队列
+    // Stop task queue
     await taskQueue.stop();
 
     server.close(() => {
       logger.info('Server closed');
 
-      // 删除 PID 文件
+      // Remove PID file
       if (fs.existsSync(config.pidFile)) {
         fs.unlinkSync(config.pidFile);
       }
       process.exit(0);
     });
 
-    // 强制退出超时
+    // Force-exit timeout
     setTimeout(() => {
       logger.error('Forced shutdown after timeout');
       process.exit(1);
@@ -458,7 +469,7 @@ async function main() {
 
 module.exports = main;
 
-// 如果直接运行此文件，捕获错误
+// If this file is run directly, catch errors
 if (require.main === module) {
   main().catch((err) => {
     console.error('Failed to start server:', err);

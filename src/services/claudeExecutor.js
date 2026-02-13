@@ -2,18 +2,21 @@ const { spawn } = require('child_process');
 const getLogger = require('../utils/logger');
 
 /**
- * Claude 执行器
+ * Claude executor
  */
 class ClaudeExecutor {
   constructor(config, sessionStore = null, statsStore = null) {
     this.config = config;
     this.sessionStore = sessionStore;
     this.statsStore = statsStore;
-    this.logger = getLogger({ logFile: config.logFile, logLevel: config.logLevel });
+    this.logger = getLogger({
+      logFile: config.logFile,
+      logLevel: config.logLevel,
+    });
   }
 
   /**
-   * 执行 Claude 命令
+   * Execute Claude command
    */
   async execute(options) {
     const {
@@ -29,7 +32,7 @@ class ClaudeExecutor {
       stream = false,
     } = options;
 
-    // 预算控制：检查会话当前花费
+    // Budget control: check current session cost
     if (sessionId && maxBudgetUsd && this.sessionStore) {
       const session = await this.sessionStore.get(sessionId);
       if (session && session.total_cost_usd >= maxBudgetUsd) {
@@ -51,7 +54,7 @@ class ClaudeExecutor {
     const startTime = Date.now();
 
     try {
-      // 构建命令参数
+      // Build command arguments
       const args = this.buildCommandArgs({
         prompt,
         model,
@@ -71,7 +74,7 @@ class ClaudeExecutor {
         args: args.join(' ').substring(0, 200) + '...',
       });
 
-      // 使用 spawn 异步执行
+      // Execute asynchronously using spawn
       const result = await this.spawnCommand(projectPath, args);
 
       const duration = Date.now() - startTime;
@@ -83,7 +86,7 @@ class ClaudeExecutor {
         session_id: result.session_id,
       });
 
-      // 预算控制：检查执行后是否超预算
+      // Budget control: check whether budget is exceeded after execution
       if (sessionId && maxBudgetUsd && this.sessionStore) {
         const session = await this.sessionStore.get(sessionId);
         const newTotalCost = (session?.total_cost_usd || 0) + costUsd;
@@ -106,7 +109,7 @@ class ClaudeExecutor {
         }
       }
 
-      // 记录统计
+      // Record statistics
       if (this.statsStore && this.config.statistics?.enabled) {
         await this.statsStore.recordRequest({
           success: true,
@@ -117,7 +120,7 @@ class ClaudeExecutor {
         });
       }
 
-      // 更新会话花费
+      // Update session cost
       if (this.sessionStore && sessionId) {
         await this.sessionStore.addCost(sessionId, costUsd);
         await this.sessionStore.incrementMessages(sessionId);
@@ -139,7 +142,7 @@ class ClaudeExecutor {
         duration_ms: duration,
       });
 
-      // 记录失败统计
+      // Record failure statistics
       if (this.statsStore && this.config.statistics?.enabled) {
         await this.statsStore.recordRequest({
           success: false,
@@ -156,20 +159,22 @@ class ClaudeExecutor {
   }
 
   /**
-   * 使用 spawn 执行命令
+   * Execute command with spawn
    */
   spawnCommand(projectPath, args) {
     return new Promise((resolve, reject) => {
       const env = { ...process.env };
       env.PATH = `${this.config.nvmBin}:${env.PATH}`;
 
-      // 根据配置决定是否使用 IS_SANDBOX=1 环境变量
-      // 这是为了绕过 Claude CLI 在 root 用户下对 --allow-dangerously-skip-permissions 的限制
+      // Decide whether to use IS_SANDBOX=1 environment variable based on config
+      // This is used to bypass Claude CLI restrictions on --allow-dangerously-skip-permissions for root users
       if (this.config.enableRootCompatibility !== false) {
         env.IS_SANDBOX = '1';
         const isRunningAsRoot = process.getuid() === 0;
         if (isRunningAsRoot) {
-          this.logger.warn('Root compatibility mode enabled - using IS_SANDBOX=1 to bypass Claude CLI root restrictions');
+          this.logger.warn(
+            'Root compatibility mode enabled - using IS_SANDBOX=1 to bypass Claude CLI root restrictions',
+          );
         }
       }
 
@@ -190,18 +195,20 @@ class ClaudeExecutor {
         stderr += data.toString();
       });
 
-      // 超时处理
+      // Timeout handling
       const timeout = setTimeout(() => {
         child.kill('SIGTERM');
         reject(new Error('Command execution timeout'));
-      }, 300000); // 5分钟超时
+      }, 300000); // 5-minute timeout
 
       child.on('close', (code) => {
         clearTimeout(timeout);
         const output = stdout || stderr;
 
         if (code !== 0) {
-          return reject(new Error(`Command failed with code ${code}: ${output}`));
+          return reject(
+            new Error(`Command failed with code ${code}: ${output}`),
+          );
         }
 
         if (!output || output.trim().length === 0) {
@@ -224,7 +231,7 @@ class ClaudeExecutor {
   }
 
   /**
-   * 构建命令参数数组
+   * Build command arguments array
    */
   buildCommandArgs(options) {
     const {
@@ -241,55 +248,57 @@ class ClaudeExecutor {
 
     const args = ['-p', prompt, '--output-format', 'json'];
 
-    // 添加模型
+    // Add model
     if (model) {
       args.push('--model', model);
     }
 
-    // 添加会话 ID
+    // Add session ID
     if (sessionId) {
       args.push('--session-id', sessionId);
     }
 
-    // 添加系统提示
+    // Add system prompt
     if (systemPrompt) {
       args.push('--system-prompt', systemPrompt);
     }
 
-    // 添加预算限制
+    // Add budget limit
     if (maxBudgetUsd) {
       args.push('--max-budget-usd', maxBudgetUsd.toString());
     }
 
-    // 添加允许的工具
+    // Add allowed tools
     if (allowedTools && allowedTools.length > 0) {
       args.push('--allowed-tools', allowedTools.join(','));
     }
 
-    // 添加禁止的工具
+    // Add disallowed tools
     if (disallowedTools && disallowedTools.length > 0) {
       args.push('--disallowed-tools', disallowedTools.join(','));
     }
 
-    // 添加 agent
+    // Add agent
     if (agent) {
       args.push('--agent', agent);
     }
 
-    // 添加 MCP 配置
-    const mcpConfigPath = mcpConfig || (this.config.mcp?.enabled ? this.config.mcp.configPath : null);
+    // Add MCP config
+    const mcpConfigPath =
+      mcpConfig ||
+      (this.config.mcp?.enabled ? this.config.mcp.configPath : null);
     if (mcpConfigPath) {
       args.push('--mcp-config', mcpConfigPath);
     }
 
-    // 跳过权限检查
+    // Skip permission checks
     args.push('--allow-dangerously-skip-permissions');
 
     return args;
   }
 
   /**
-   * 转义 shell 参数（保留用于可能的 shell 命令）
+   * Escape shell arguments (kept for potential shell commands)
    */
   escapeArg(arg) {
     return arg.replace(/'/g, "'\"'\"'");

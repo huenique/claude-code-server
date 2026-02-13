@@ -1,12 +1,12 @@
 const Validators = require('../utils/validators');
 
 /**
- * 创建会话路由
+ * Session routes
  */
 function createSessionRoutes(sessionManager) {
   const router = require('express').Router();
 
-  // POST /api/sessions - 创建会话
+  // POST /api/sessions - Create session
   router.post('/', async (req, res) => {
     const validation = Validators.validateSessionCreate(req.body);
     if (!validation.valid) {
@@ -30,7 +30,7 @@ function createSessionRoutes(sessionManager) {
     }
   });
 
-  // GET /api/sessions - 列出会话
+  // GET /api/sessions - List sessions
   router.get('/', async (req, res) => {
     try {
       const options = {
@@ -53,7 +53,7 @@ function createSessionRoutes(sessionManager) {
     }
   });
 
-  // GET /api/sessions/search - 搜索会话
+  // GET /api/sessions/search - Search sessions
   router.get('/search', async (req, res) => {
     const validation = Validators.validateSearchQuery(req.query);
     if (!validation.valid) {
@@ -68,7 +68,10 @@ function createSessionRoutes(sessionManager) {
         limit: req.query.limit ? parseInt(req.query.limit) : undefined,
       };
 
-      const sessions = await sessionManager.searchSessions(validation.value.q, options);
+      const sessions = await sessionManager.searchSessions(
+        validation.value.q,
+        options,
+      );
       res.json({
         success: true,
         sessions,
@@ -82,7 +85,7 @@ function createSessionRoutes(sessionManager) {
     }
   });
 
-  // GET /api/sessions/:id - 获取会话详情
+  // GET /api/sessions/:id - Get session details
   router.get('/:id', async (req, res) => {
     try {
       const session = await sessionManager.getSession(req.params.id);
@@ -105,7 +108,7 @@ function createSessionRoutes(sessionManager) {
     }
   });
 
-  // POST /api/sessions/:id/continue - 继续会话
+  // POST /api/sessions/:id/continue - Continue session
   router.post('/:id/continue', async (req, res) => {
     const validation = Validators.validateSessionContinue(req.body);
     if (!validation.valid) {
@@ -116,7 +119,10 @@ function createSessionRoutes(sessionManager) {
     }
 
     try {
-      const result = await sessionManager.continueSession(req.params.id, validation.value);
+      const result = await sessionManager.continueSession(
+        req.params.id,
+        validation.value,
+      );
 
       if (result.success) {
         res.json(result);
@@ -131,7 +137,7 @@ function createSessionRoutes(sessionManager) {
     }
   });
 
-  // GET /api/sessions/:id/stats - 获取会话统计
+  // GET /api/sessions/:id/stats - Get session statistics
   router.get('/:id/stats', async (req, res) => {
     try {
       const stats = await sessionManager.getSessionStats(req.params.id);
@@ -154,7 +160,7 @@ function createSessionRoutes(sessionManager) {
     }
   });
 
-  // DELETE /api/sessions/:id - 删除会话
+  // DELETE /api/sessions/:id - Delete session
   router.delete('/:id', async (req, res) => {
     try {
       const result = await sessionManager.deleteSession(req.params.id);
@@ -171,7 +177,7 @@ function createSessionRoutes(sessionManager) {
     }
   });
 
-  // PATCH /api/sessions/:id/status - 更新会话状态
+  // PATCH /api/sessions/:id/status - Update session status
   router.patch('/:id/status', async (req, res) => {
     const { status } = req.body;
 
@@ -183,7 +189,10 @@ function createSessionRoutes(sessionManager) {
     }
 
     try {
-      const result = await sessionManager.updateSessionStatus(req.params.id, status);
+      const result = await sessionManager.updateSessionStatus(
+        req.params.id,
+        status,
+      );
       if (result.success) {
         res.json(result);
       } else {

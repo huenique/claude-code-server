@@ -1,7 +1,7 @@
 const BaseStore = require('./baseStore');
 
 /**
- * 任务存储
+ * Task store
  */
 class TaskStore extends BaseStore {
   constructor(dataDir = './data/tasks') {
@@ -9,14 +9,14 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 获取默认数据结构
+   * Get default data structure
    */
   getDefaultData() {
     return { tasks: [] };
   }
 
   /**
-   * 创建任务
+   * Create task
    */
   async create(taskData) {
     return this.withLock(async () => {
@@ -45,24 +45,24 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 获取任务
+   * Get task
    */
   async get(taskId) {
     await this.db.read();
-    return this.db.data.tasks.find(t => t.id === taskId);
+    return this.db.data.tasks.find((t) => t.id === taskId);
   }
 
   /**
-   * 更新任务
+   * Update task
    */
   async update(taskId, updates) {
     return this.withLock(async () => {
-      const index = this.db.data.tasks.findIndex(t => t.id === taskId);
+      const index = this.db.data.tasks.findIndex((t) => t.id === taskId);
       if (index === -1) {
         return null;
       }
 
-      // 合并更新
+      // Merge updates
       this.db.data.tasks[index] = {
         ...this.db.data.tasks[index],
         ...updates,
@@ -74,11 +74,11 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 删除任务
+   * Delete task
    */
   async delete(taskId) {
     return this.withLock(async () => {
-      const index = this.db.data.tasks.findIndex(t => t.id === taskId);
+      const index = this.db.data.tasks.findIndex((t) => t.id === taskId);
       if (index === -1) {
         return false;
       }
@@ -89,27 +89,27 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 列出任务
+   * List tasks
    */
   async list(options = {}) {
     await this.db.read();
 
     let tasks = this.db.data.tasks;
 
-    // 过滤条件
+    // Filter conditions
     if (options.status) {
-      tasks = tasks.filter(t => t.status === options.status);
+      tasks = tasks.filter((t) => t.status === options.status);
     }
 
-    // 排序（按优先级和创建时间）
+    // Sorting (by priority and creation time)
     tasks.sort((a, b) => {
       if (a.priority !== b.priority) {
-        return b.priority - a.priority; // 优先级高的在前
+        return b.priority - a.priority; // Higher priority comes first
       }
       return new Date(a.created_at) - new Date(b.created_at);
     });
 
-    // 分页
+    // Pagination
     if (options.limit) {
       tasks = tasks.slice(0, options.limit);
     }
@@ -118,13 +118,13 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 获取下一个待处理任务
+   * Get next pending task
    */
   async getNextPending() {
     await this.db.read();
 
     const pendingTasks = this.db.data.tasks
-      .filter(t => t.status === 'pending')
+      .filter((t) => t.status === 'pending')
       .sort((a, b) => {
         if (a.priority !== b.priority) {
           return b.priority - a.priority;
@@ -136,7 +136,7 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 标记任务为处理中
+   * Mark task as processing
    */
   async markProcessing(taskId) {
     return this.update(taskId, {
@@ -146,7 +146,7 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 标记任务为完成
+   * Mark task as completed
    */
   async markCompleted(taskId, result, costUsd = 0) {
     const task = await this.get(taskId);
@@ -168,7 +168,7 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 标记任务为失败
+   * Mark task as failed
    */
   async markFailed(taskId, error) {
     const task = await this.get(taskId);
@@ -189,7 +189,7 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 取消任务
+   * Cancel task
    */
   async cancel(taskId) {
     const task = await this.get(taskId);
@@ -197,7 +197,7 @@ class TaskStore extends BaseStore {
       return null;
     }
 
-    // 只能取消 pending 或 processing 状态的任务
+    // Only tasks in pending or processing state can be canceled
     if (task.status !== 'pending' && task.status !== 'processing') {
       return null;
     }
@@ -209,7 +209,7 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 清理已完成的旧任务
+   * Clean up old completed tasks
    */
   async cleanup(retentionDays) {
     return this.withLock(async () => {
@@ -218,8 +218,11 @@ class TaskStore extends BaseStore {
 
       const beforeCount = this.db.data.tasks.length;
       this.db.data.tasks = this.db.data.tasks.filter(
-        t => new Date(t.completed_at || t.created_at) > cutoffDate ||
-             (t.status !== 'completed' && t.status !== 'failed' && t.status !== 'cancelled')
+        (t) =>
+          new Date(t.completed_at || t.created_at) > cutoffDate ||
+          (t.status !== 'completed' &&
+            t.status !== 'failed' &&
+            t.status !== 'cancelled'),
       );
       const deletedCount = beforeCount - this.db.data.tasks.length;
 
@@ -228,7 +231,7 @@ class TaskStore extends BaseStore {
   }
 
   /**
-   * 获取统计信息
+   * Get statistics
    */
   async getStats() {
     await this.db.read();
@@ -244,7 +247,7 @@ class TaskStore extends BaseStore {
       total_cost_usd: 0,
     };
 
-    tasks.forEach(t => {
+    tasks.forEach((t) => {
       stats[t.status]++;
       stats.total_cost_usd += t.cost_usd || 0;
     });
